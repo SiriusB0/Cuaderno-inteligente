@@ -102,6 +102,12 @@ class StudyView {
             pomodoroBtn.addEventListener('click', () => this.startPomodoro());
         }
         
+        // Botón Indexar Recursos
+        const indexResourcesBtn = document.getElementById('index-resources-btn');
+        if (indexResourcesBtn) {
+            indexResourcesBtn.addEventListener('click', () => this.indexResources());
+        }
+        
         // Botón IA Chat
         const aiChatBtn = document.getElementById('toggle-ai-chat-btn');
         if (aiChatBtn) {
@@ -146,17 +152,93 @@ class StudyView {
     }
     
     /**
+     * Indexar recursos del tema actual para IA
+     */
+    async indexResources() {
+        if (!this.currentSubject || !this.currentTopic) {
+            this.notifications.error('No hay tema seleccionado');
+            return;
+        }
+        
+        // Obtener recursos del tema actual
+        const resources = await this.dataManager.getResources(this.currentTopic.id);
+        
+        if (!resources || resources.length === 0) {
+            this.notifications.error('No hay recursos para indexar');
+            return;
+        }
+        
+        // Filtrar solo PDFs y TXTs
+        const validResources = resources.filter(r => 
+            r.url && (r.url.endsWith('.pdf') || r.url.endsWith('.txt'))
+        );
+        
+        if (validResources.length === 0) {
+            this.notifications.error('No hay PDFs o archivos de texto para indexar');
+            return;
+        }
+        
+        this.notifications.info(`Indexando ${validResources.length} recurso(s)... Esto puede tardar un momento.`);
+        
+        try {
+            // Llamar a Edge Function para indexar
+            const SUPABASE_URL = 'https://xsumibufekrmfcenyqgq.supabase.co';
+            const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhzdW1pYnVmZWtybWZjZW55cWdxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk0OTExOTIsImV4cCI6MjA3NTA2NzE5Mn0.x-vdT-84cEOj-5SDOVfDbgZMVVWczj8iVM0P_VoEkBc';
+            
+            const response = await fetch(`${SUPABASE_URL}/functions/v1/index-resources`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    subjectId: this.currentSubject.id,
+                    topicId: this.currentTopic.id,
+                    subjectName: this.currentSubject.name,
+                    topicName: this.currentTopic.name,
+                    resourceUrls: validResources.map(r => r.url)
+                })
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Error al indexar recursos');
+            }
+            
+            const result = await response.json();
+            
+            // Descargar el índice JSON generado
+            const jsonBlob = new Blob([JSON.stringify(result.index, null, 2)], { type: 'application/json' });
+            const downloadUrl = URL.createObjectURL(jsonBlob);
+            const a = document.createElement('a');
+            a.href = downloadUrl;
+            a.download = `${result.path}`;
+            a.click();
+            URL.revokeObjectURL(downloadUrl);
+            
+            this.notifications.success(`✅ Índice generado con ${result.chunks} fragmentos. Descarga iniciada.`);
+            this.notifications.info('📝 Sube el archivo descargado a la carpeta public/indices/ y despliega a Vercel');
+            
+        } catch (error) {
+            console.error('Error indexando recursos:', error);
+            this.notifications.error(`Error: ${error.message}`);
+        }
+    }
+    
+    /**
      * Navega el carousel de botones (muestra 1 elemento a la vez)
-     * - Slide 0: Botón Pomodoro (140px)
-     * - Slide 1: Toggle + Presentación (2 botones de 36px)
-     * - Slide 2: Exportar PDF (1 botón de 36px centrado)
+     * - Slide 0: Botón Indexar (140px)
+     * - Slide 1: Botón Chat IA (140px)
+     * - Slide 2: Botón Pomodoro (140px)
+     * - Slide 3: Toggle + Presentación (2 botones de 36px)
+     * - Slide 4: Exportar PDF (1 botón de 36px centrado)
      */
     scrollCarousel() {
         const carousel = document.getElementById('header-carousel');
         if (!carousel) return;
         
-        // Total de elementos: 3 slides
-        const totalSlides = 3;
+        // Total de elementos: 5 slides
+        const totalSlides = 5;
         const slideWidth = 142; // 140px elemento + 2px gap
         
         this.carouselOffset = (this.carouselOffset + 1) % totalSlides;
