@@ -34,7 +34,7 @@ class AIChatModal {
         
         this.isVisible = true;
         this.modal.classList.remove('hidden');
-        this.modal.classList.add('flex');
+        this.modal.style.display = 'flex';
         
         // Cargar índice JSON si no está en cache
         if (!this.indexCache) {
@@ -55,7 +55,7 @@ class AIChatModal {
         this.isVisible = false;
         if (this.modal) {
             this.modal.classList.add('hidden');
-            this.modal.classList.remove('flex');
+            this.modal.style.display = 'none';
         }
     }
     
@@ -79,9 +79,7 @@ class AIChatModal {
      */
     createModal() {
         const modalHTML = `
-        <div id="ai-chat-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
-            <!-- Modal container -->
-            <div class="bg-slate-800 rounded-xl shadow-2xl flex flex-col max-w-4xl w-full h-[90vh]">
+        <div id="ai-chat-modal" class="fixed top-0 right-0 bottom-0 z-50 hidden flex-col w-[480px] bg-slate-800 shadow-2xl border-l border-slate-700">
                 <!-- Header -->
                 <div class="flex items-center justify-between p-4 border-b border-slate-700 bg-slate-900">
                     <div class="flex items-center gap-3">
