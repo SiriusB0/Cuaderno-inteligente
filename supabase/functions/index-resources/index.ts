@@ -4,12 +4,17 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { corsHeaders } from '../_shared/cors.ts'
 
+interface ResourceText {
+  name: string
+  text: string
+}
+
 interface RequestBody {
   subjectId: string
   topicId: string
   subjectName: string
   topicName: string
-  resourceUrls: string[] // URLs de PDFs en Supabase Storage
+  resourceTexts: ResourceText[] // Textos decodificados de archivos
 }
 
 serve(async (req) => {
@@ -19,10 +24,10 @@ serve(async (req) => {
   }
 
   try {
-    const { subjectId, topicId, subjectName, topicName, resourceUrls }: RequestBody = await req.json()
+    const { subjectId, topicId, subjectName, topicName, resourceTexts }: RequestBody = await req.json()
 
     // Validar
-    if (!subjectName || !topicName || !resourceUrls || resourceUrls.length === 0) {
+    if (!subjectName || !topicName || !resourceTexts || resourceTexts.length === 0) {
       return new Response(
         JSON.stringify({ error: 'Missing required fields' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -44,33 +49,13 @@ serve(async (req) => {
 
     const chunks: any[] = []
 
-    // Procesar cada PDF
-    for (let i = 0; i < resourceUrls.length; i++) {
-      const url = resourceUrls[i]
+    // Procesar cada texto
+    for (let i = 0; i < resourceTexts.length; i++) {
+      const resource = resourceTexts[i]
+      const fileName = resource.name
       
-      // Solo procesar PDFs y TXTs
-      if (!url.endsWith('.pdf') && !url.endsWith('.txt')) {
-        continue
-      }
-
       try {
-        // Descargar archivo
-        const fileResponse = await fetch(url)
-        if (!fileResponse.ok) continue
-
-        const fileBuffer = await fileResponse.arrayBuffer()
-        const fileName = url.split('/').pop() || `resource-${i}`
-
-        // Extraer texto (simplificado - solo para TXT por ahora)
-        let text = ''
-        if (url.endsWith('.txt')) {
-          text = new TextDecoder().decode(fileBuffer)
-        } else if (url.endsWith('.pdf')) {
-          // Para PDFs, necesitaríamos una librería de parsing
-          // Por ahora, saltamos PDFs y solo procesamos TXT
-          // En producción, usar pdf-parse o similar
-          continue
-        }
+        const text = resource.text
 
         if (!text || text.length === 0) continue
 
@@ -106,12 +91,11 @@ serve(async (req) => {
             text: chunk,
             embedding,
             sourceName: fileName,
-            sourceUrl: url,
             ord: chunks.length
           })
         }
       } catch (error) {
-        console.error('Error processing file:', url, error)
+        console.error('Error processing file:', fileName, error)
         continue
       }
     }

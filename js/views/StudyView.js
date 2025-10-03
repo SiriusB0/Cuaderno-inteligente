@@ -170,21 +170,20 @@ class StudyView {
             return;
         }
         
-        // Filtrar solo PDFs y TXTs basándose en el tipo MIME o nombre
+        // Filtrar solo TXTs (PDFs requieren procesamiento especial)
         const validResources = resources.filter(r => {
-            const hasUrl = (r.url || r.publicUrl) && (r.url?.length > 0 || r.publicUrl?.length > 0);
-            const isTextFile = r.type === 'text' || r.type === 'text/plain' || r.mimeType === 'text/plain' || r.name?.toLowerCase().endsWith('.txt');
-            const isPdfFile = r.type === 'pdf' || r.type === 'application/pdf' || r.mimeType === 'application/pdf' || r.name?.toLowerCase().endsWith('.pdf');
+            const hasData = r.data && r.data.length > 0;
+            const isTextFile = r.type === 'text' || r.mimeType === 'text/plain' || r.name?.toLowerCase().endsWith('.txt');
             
             console.log('DEBUG: Recurso:', { 
                 name: r.name, 
                 type: r.type, 
                 mimeType: r.mimeType,
-                url: r.url?.substring(0, 50),
-                publicUrl: r.publicUrl?.substring(0, 50)
+                hasData: hasData,
+                dataLength: r.data?.length
             });
             
-            return hasUrl && (isTextFile || isPdfFile);
+            return hasData && isTextFile;
         });
         
         console.log('DEBUG: Recursos válidos:', validResources);
@@ -197,6 +196,17 @@ class StudyView {
         this.notifications.info(`Indexando ${validResources.length} recurso(s)... Esto puede tardar un momento.`);
         
         try {
+            // Decodificar archivos base64 a texto
+            const resourceTexts = validResources.map(r => {
+                // El data está en formato: "data:text/plain;base64,XXXXXX"
+                const base64Data = r.data.split(',')[1];
+                const decodedText = atob(base64Data);
+                return {
+                    name: r.name,
+                    text: decodedText
+                };
+            });
+            
             // Llamar a Edge Function para indexar
             const SUPABASE_URL = 'https://xsumibufekrmfcenyqgq.supabase.co';
             const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhzdW1pYnVmZWtybWZjZW55cWdxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk0OTExOTIsImV4cCI6MjA3NTA2NzE5Mn0.x-vdT-84cEOj-5SDOVfDbgZMVVWczj8iVM0P_VoEkBc';
@@ -212,7 +222,7 @@ class StudyView {
                     topicId: this.currentTopic.id,
                     subjectName: this.currentSubject.name,
                     topicName: this.currentTopic.name,
-                    resourceUrls: validResources.map(r => r.url)
+                    resourceTexts: resourceTexts
                 })
             });
             
