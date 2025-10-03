@@ -163,15 +163,25 @@ class StudyView {
         // Obtener recursos de la materia actual (los recursos son por materia, no por tema)
         const resources = this.dataManager.getResources(this.currentSubject.id);
         
+        console.log('DEBUG: Recursos encontrados:', resources);
+        
         if (!resources || resources.length === 0) {
             this.notifications.error('No hay recursos para indexar');
             return;
         }
         
-        // Filtrar solo PDFs y TXTs
-        const validResources = resources.filter(r => 
-            r.url && (r.url.endsWith('.pdf') || r.url.endsWith('.txt'))
-        );
+        // Filtrar solo PDFs y TXTs basándose en el tipo MIME o nombre
+        const validResources = resources.filter(r => {
+            const hasUrl = r.url && r.url.length > 0;
+            const isTextFile = r.type === 'text/plain' || r.name?.toLowerCase().endsWith('.txt');
+            const isPdfFile = r.type === 'application/pdf' || r.name?.toLowerCase().endsWith('.pdf');
+            
+            console.log('DEBUG: Recurso:', { name: r.name, type: r.type, url: r.url?.substring(0, 50) });
+            
+            return hasUrl && (isTextFile || isPdfFile);
+        });
+        
+        console.log('DEBUG: Recursos válidos:', validResources);
         
         if (validResources.length === 0) {
             this.notifications.error('No hay PDFs o archivos de texto para indexar');
