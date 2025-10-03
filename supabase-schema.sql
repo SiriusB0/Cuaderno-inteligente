@@ -145,6 +145,47 @@ CREATE POLICY "Allow all operations on resources" ON resources FOR ALL USING (tr
 CREATE POLICY "Allow all operations on study_stats" ON study_stats FOR ALL USING (true);
 
 -- =====================================================
+-- TABLA: quiz_collections (Colecciones de quizzes)
+-- =====================================================
+CREATE TABLE IF NOT EXISTS quiz_collections (
+    id TEXT PRIMARY KEY,
+    topic_id TEXT NOT NULL REFERENCES topics(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    questions JSONB DEFAULT '[]'::jsonb,
+    is_pinned BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- =====================================================
+-- TABLA: quiz_stats (Estadísticas de quizzes)
+-- =====================================================
+CREATE TABLE IF NOT EXISTS quiz_stats (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    collection_id TEXT NOT NULL REFERENCES quiz_collections(id) ON DELETE CASCADE,
+    correct_answers INTEGER DEFAULT 0,
+    total_questions INTEGER DEFAULT 0,
+    time_spent INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- =====================================================
+-- ÍNDICES adicionales para quizzes
+-- =====================================================
+CREATE INDEX IF NOT EXISTS idx_quiz_collections_topic ON quiz_collections(topic_id);
+CREATE INDEX IF NOT EXISTS idx_quiz_stats_collection ON quiz_stats(collection_id);
+
+-- =====================================================
+-- RLS para quizzes
+-- =====================================================
+ALTER TABLE quiz_collections ENABLE ROW LEVEL SECURITY;
+ALTER TABLE quiz_stats ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow all operations on quiz_collections" ON quiz_collections FOR ALL USING (true);
+CREATE POLICY "Allow all operations on quiz_stats" ON quiz_stats FOR ALL USING (true);
+
+-- =====================================================
 -- DATOS DE EJEMPLO (Opcional)
 -- Descomenta si quieres datos iniciales
 -- =====================================================
