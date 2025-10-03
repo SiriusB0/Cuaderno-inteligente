@@ -164,6 +164,7 @@ class StudyView {
         const resources = this.dataManager.getResources(this.currentSubject.id);
         
         console.log('DEBUG: Recursos encontrados:', resources);
+        console.log('DEBUG: Primer recurso completo:', JSON.stringify(resources[0], null, 2));
         
         if (!resources || resources.length === 0) {
             this.notifications.error('No hay recursos para indexar');
@@ -175,13 +176,8 @@ class StudyView {
             const hasData = r.data && r.data.length > 0;
             const isTextFile = r.type === 'text' || r.mimeType === 'text/plain' || r.name?.toLowerCase().endsWith('.txt');
             
-            console.log('DEBUG: Recurso:', { 
-                name: r.name, 
-                type: r.type, 
-                mimeType: r.mimeType,
-                hasData: hasData,
-                dataLength: r.data?.length
-            });
+            console.log('DEBUG: Recurso completo:', r);
+            console.log('DEBUG: hasData:', hasData, 'isTextFile:', isTextFile);
             
             return hasData && isTextFile;
         });
