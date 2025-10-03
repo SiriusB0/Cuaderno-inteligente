@@ -5,6 +5,7 @@ import ResourceManager from '../components/ResourceManager.js';
 import EventsManager from '../components/EventsManager.js';
 import PomodoroManager from '../components/PomodoroManager.js';
 import ExcalidrawManager from '../components/ExcalidrawManager.js';
+import AIChatModal from '../components/AIChatModal.js';
 
 /**
  * Vista de estudio de un tema específico
@@ -36,6 +37,7 @@ class StudyView {
         this.resourceManager = new ResourceManager(dataManager, notifications);
         this.pomodoroManager = new PomodoroManager(dataManager, notifications);
         this.diagramManager = new ExcalidrawManager(dataManager, notifications);
+        this.aiChatModal = new AIChatModal(dataManager, notifications);
         
         // Carousel state
         this.carouselOffset = 0;
@@ -100,6 +102,12 @@ class StudyView {
             pomodoroBtn.addEventListener('click', () => this.startPomodoro());
         }
         
+        // Botón IA Chat
+        const aiChatBtn = document.getElementById('toggle-ai-chat-btn');
+        if (aiChatBtn) {
+            aiChatBtn.addEventListener('click', () => this.toggleAIChat());
+        }
+        
         // Carousel navigation
         const carouselPrevBtn = document.getElementById('carousel-prev-btn');
         if (carouselPrevBtn) {
@@ -123,6 +131,18 @@ class StudyView {
         }
         
         this.pomodoroManager.showConfigModal(this.currentSubject.id);
+    }
+    
+    /**
+     * Toggle del modal de IA Chat
+     */
+    toggleAIChat() {
+        if (!this.currentSubject || !this.currentTopic) {
+            this.notifications.error('No hay tema seleccionado');
+            return;
+        }
+        
+        this.aiChatModal.toggle(this.currentSubject, this.currentTopic);
     }
     
     /**

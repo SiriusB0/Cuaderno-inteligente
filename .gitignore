@@ -49,3 +49,13 @@ server.py
 
 # Vercel
 .vercel
+
+# AI / RAG
+recursos/
+public/indices/*
+!public/indices/.gitkeep
+!public/indices/ejemplo/
+
+# Scripts node_modules
+scripts/node_modules/
+scripts/package-lock.json

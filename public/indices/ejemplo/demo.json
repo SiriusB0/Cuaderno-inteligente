@@ -1,0 +1,26 @@
+[
+  {
+    "id": "chunk-0",
+    "text": "Bienvenido al Cuaderno Inteligente con IA. Este es un ejemplo de índice JSON que contiene fragmentos de texto con sus embeddings. Los embeddings son vectores de 1536 dimensiones que representan el significado semántico del texto.",
+    "embedding": [0.023, -0.012, 0.045, -0.089, 0.067, 0.034, -0.078, 0.091, -0.023, 0.056, 0.012, -0.067, 0.089, -0.045, 0.034, 0.078, -0.091, 0.023, -0.056, 0.067, 0.012, -0.089, 0.045, -0.034, 0.078, 0.091, -0.023, 0.056, -0.067, 0.012],
+    "sourceName": "ejemplo-demo.txt",
+    "sourceUrl": null,
+    "ord": 0
+  },
+  {
+    "id": "chunk-1",
+    "text": "Para usar el asistente IA, primero debes generar índices de tus recursos usando el script generate-index.js. El proceso extrae texto de PDFs o archivos de texto, los divide en chunks, genera embeddings usando OpenAI, y guarda todo en formato JSON.",
+    "embedding": [0.034, -0.023, 0.067, -0.091, 0.045, 0.012, -0.089, 0.078, -0.034, 0.056, 0.023, -0.067, 0.091, -0.045, 0.012, 0.089, -0.078, 0.034, -0.056, 0.067, 0.023, -0.091, 0.045, -0.012, 0.089, 0.078, -0.034, 0.056, -0.067, 0.023],
+    "sourceName": "ejemplo-demo.txt",
+    "sourceUrl": null,
+    "ord": 1
+  },
+  {
+    "id": "chunk-2",
+    "text": "El sistema RAG (Retrieval Augmented Generation) funciona buscando los fragmentos más relevantes a tu pregunta usando similitud coseno entre vectores. Luego envía esos fragmentos junto con tu pregunta a GPT-4o-mini para generar una respuesta contextualizada.",
+    "embedding": [0.045, -0.034, 0.078, -0.089, 0.056, 0.023, -0.091, 0.067, -0.045, 0.034, 0.012, -0.078, 0.089, -0.056, 0.023, 0.091, -0.067, 0.045, -0.034, 0.078, 0.012, -0.089, 0.056, -0.023, 0.091, 0.067, -0.045, 0.034, -0.078, 0.012],
+    "sourceName": "ejemplo-demo.txt",
+    "sourceUrl": null,
+    "ord": 2
+  }
+]
