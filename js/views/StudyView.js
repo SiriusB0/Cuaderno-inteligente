@@ -160,8 +160,8 @@ class StudyView {
             return;
         }
         
-        // Obtener recursos del tema actual
-        const resources = await this.dataManager.getResources(this.currentTopic.id);
+        // Obtener recursos de la materia actual (los recursos son por materia, no por tema)
+        const resources = this.dataManager.getResources(this.currentSubject.id);
         
         if (!resources || resources.length === 0) {
             this.notifications.error('No hay recursos para indexar');
