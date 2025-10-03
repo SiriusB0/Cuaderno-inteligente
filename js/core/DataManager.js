@@ -545,16 +545,21 @@ class DataManager {
             await this.syncToSupabase(operation.endpoint, operation.method, operation.data);
         }
     }
-
+    
     /**
-     * Carga datos iniciales desde Supabase al arrancar la app
-     * Esto permite recuperar datos en cualquier dispositivo o si se borra localStorage
+     * Obtiene recursos de un tema
+     */
+    getResources(topicId) {
+        return this.data.resources[topicId] || [];
+    }
+    
+    /**
+     * Carga datos desde Supabase (si está disponible)
      */
     async loadFromSupabase() {
-        console.log('[Load] 🔄 Cargando datos desde Supabase...');
+        console.log('[Load] Cargando datos desde Supabase...');
         
         try {
-            // Cargar subjects
             const subjectsResponse = await fetch('/api/subjects');
             if (subjectsResponse.ok) {
                 const subjectsData = await subjectsResponse.json();
