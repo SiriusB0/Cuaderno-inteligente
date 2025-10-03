@@ -112,17 +112,40 @@ serve(async (req) => {
 
     // Generar índice JSON
     const index = chunks
+    const indexPath = `indices/${subjectSlug}/${topicSlug}.json`
 
-    // Aquí normalmente guardarías el índice en Storage de Supabase
-    // Por simplicidad, lo devolvemos al cliente para que lo guarde
-    // En producción, guardar en: /indices/${subjectSlug}/${topicSlug}.json
+    // Guardar índice en Supabase Storage
+    try {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL') || 'https://xsumibufekrmfcenyqgq.supabase.co'
+      const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+      
+      if (supabaseServiceKey) {
+        const storageResponse = await fetch(
+          `${supabaseUrl}/storage/v1/object/ai-indices/${indexPath}`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${supabaseServiceKey}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(index)
+          }
+        )
+
+        if (!storageResponse.ok) {
+          console.error('Error guardando en Storage:', await storageResponse.text())
+        }
+      }
+    } catch (storageError) {
+      console.error('Error con Storage:', storageError)
+    }
 
     return new Response(
       JSON.stringify({
         success: true,
         chunks: index.length,
-        index,
-        path: `indices/${subjectSlug}/${topicSlug}.json`
+        path: indexPath,
+        message: 'Índice generado y guardado correctamente'
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )

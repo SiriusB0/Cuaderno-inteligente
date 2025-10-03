@@ -229,17 +229,8 @@ class StudyView {
             
             const result = await response.json();
             
-            // Descargar el índice JSON generado
-            const jsonBlob = new Blob([JSON.stringify(result.index, null, 2)], { type: 'application/json' });
-            const downloadUrl = URL.createObjectURL(jsonBlob);
-            const a = document.createElement('a');
-            a.href = downloadUrl;
-            a.download = `${result.path}`;
-            a.click();
-            URL.revokeObjectURL(downloadUrl);
-            
-            this.notifications.success(`✅ Índice generado con ${result.chunks} fragmentos. Descarga iniciada.`);
-            this.notifications.info('📝 Sube el archivo descargado a la carpeta public/indices/ y despliega a Vercel');
+            this.notifications.success(`✅ Índice generado con ${result.chunks} fragmentos`);
+            this.notifications.info('💡 El chat IA ya puede usar este contenido automáticamente');
             
         } catch (error) {
             console.error('Error indexando recursos:', error);

@@ -173,30 +173,41 @@ class AIChatModal {
     /**
      * Carga el índice JSON del tema actual
      */
-    async loadIndex() {
-        if (!this.currentSubject || !this.currentTopic) {
+    async loadIndex(subject, topic) {
+        if (!subject || !topic) {
             this.updateIndexStatus('❌ No hay tema seleccionado', 'error');
             return;
         }
         
-        // Normalizar nombres para la ruta (sin espacios, minúsculas)
-        const subjectSlug = this.normalizeSlug(this.currentSubject.name);
-        const topicSlug = this.normalizeSlug(this.currentTopic.name);
+        const subjectSlug = this.normalizeSlug(subject.name);
+        const topicSlug = this.normalizeSlug(topic.name);
         
-        // Ruta del índice JSON en Vercel
-        const indexUrl = `/indices/${subjectSlug}/${topicSlug}.json`;
-        
-        this.updateIndexStatus('📥 Cargando índice...', 'loading');
+        this.updateIndexStatus('⏳ Cargando índice...', 'info');
         
         try {
-            const response = await fetch(indexUrl);
+            // Intentar cargar desde Supabase Storage primero
+            const storageUrl = `${this.SUPABASE_URL}/storage/v1/object/public/ai-indices/indices/${subjectSlug}/${topicSlug}.json`;
             
+            let response = await fetch(storageUrl);
+            
+            // Si no existe en Storage, intentar desde Vercel (índices estáticos)
             if (!response.ok) {
-                throw new Error(`Índice no encontrado (${response.status})`);
+                const vercelUrl = `/indices/${subjectSlug}/${topicSlug}.json`;
+                response = await fetch(vercelUrl);
             }
             
-            this.indexCache = await response.json();
-            this.updateIndexStatus(`✅ ${this.indexCache.length} fragmentos cargados`, 'success');
+            if (!response.ok) {
+                throw new Error('Índice no encontrado');
+            }
+            
+            const index = await response.json();
+            
+            if (!Array.isArray(index) || index.length === 0) {
+                throw new Error('Índice vacío o inválido');
+            }
+            
+            this.indexCache = index;
+            this.updateIndexStatus(`✅ ${index.length} fragmentos cargados`, 'success');
             this.updateContextInfo();
             
         } catch (error) {
