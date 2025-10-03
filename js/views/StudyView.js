@@ -172,11 +172,17 @@ class StudyView {
         
         // Filtrar solo PDFs y TXTs basándose en el tipo MIME o nombre
         const validResources = resources.filter(r => {
-            const hasUrl = r.url && r.url.length > 0;
-            const isTextFile = r.type === 'text/plain' || r.name?.toLowerCase().endsWith('.txt');
-            const isPdfFile = r.type === 'application/pdf' || r.name?.toLowerCase().endsWith('.pdf');
+            const hasUrl = (r.url || r.publicUrl) && (r.url?.length > 0 || r.publicUrl?.length > 0);
+            const isTextFile = r.type === 'text' || r.type === 'text/plain' || r.mimeType === 'text/plain' || r.name?.toLowerCase().endsWith('.txt');
+            const isPdfFile = r.type === 'pdf' || r.type === 'application/pdf' || r.mimeType === 'application/pdf' || r.name?.toLowerCase().endsWith('.pdf');
             
-            console.log('DEBUG: Recurso:', { name: r.name, type: r.type, url: r.url?.substring(0, 50) });
+            console.log('DEBUG: Recurso:', { 
+                name: r.name, 
+                type: r.type, 
+                mimeType: r.mimeType,
+                url: r.url?.substring(0, 50),
+                publicUrl: r.publicUrl?.substring(0, 50)
+            });
             
             return hasUrl && (isTextFile || isPdfFile);
         });
