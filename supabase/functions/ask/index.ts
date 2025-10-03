@@ -60,7 +60,8 @@ serve(async (req) => {
 IMPORTANTE:
 - Responde de forma clara, concisa y educativa (máximo 200-250 palabras).
 - Usa el contexto proporcionado de los recursos y apuntes del estudiante.
-- Si la información está en el contexto, CITA la fuente usando el formato [Fuente N].
+- NO cites fuentes en el texto. NO uses el formato [Fuente N].
+- Escribe de forma natural y fluida, sin referencias entre corchetes.
 - Si no tienes suficiente información en el contexto, di "No encuentro esa información en tus recursos" y ofrece una respuesta general breve.
 - Usa markdown para formato: **negrita**, *cursiva*, listas, etc.
 
