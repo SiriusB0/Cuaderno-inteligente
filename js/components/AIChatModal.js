@@ -63,6 +63,11 @@ class AIChatModal {
      * Toggle de visibilidad
      */
     toggle(subject, topic) {
+        if (!subject || !topic) {
+            this.notifications.error('No hay tema seleccionado');
+            return;
+        }
+        
         if (this.isVisible) {
             this.hide();
         } else {
@@ -173,14 +178,14 @@ class AIChatModal {
     /**
      * Carga el índice JSON del tema actual
      */
-    async loadIndex(subject, topic) {
-        if (!subject || !topic) {
+    async loadIndex() {
+        if (!this.currentSubject || !this.currentTopic) {
             this.updateIndexStatus('❌ No hay tema seleccionado', 'error');
             return;
         }
         
-        const subjectSlug = this.normalizeSlug(subject.name);
-        const topicSlug = this.normalizeSlug(topic.name);
+        const subjectSlug = this.normalizeSlug(this.currentSubject.name);
+        const topicSlug = this.normalizeSlug(this.currentTopic.name);
         
         this.updateIndexStatus('⏳ Cargando índice...', 'info');
         
