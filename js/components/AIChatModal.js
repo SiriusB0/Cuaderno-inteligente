@@ -74,31 +74,29 @@ class AIChatModal {
             this.show(subject, topic);
         }
     }
-    
     /**
      * Crea el modal en el DOM
      */
     createModal() {
-        this.modal = document.createElement('div');
-        this.modal.id = 'ai-chat-modal';
-        this.modal.className = 'hidden fixed bottom-4 right-4 w-96 h-[600px] bg-slate-800 rounded-xl shadow-2xl border border-slate-700 flex-col z-50 overflow-hidden';
-        
-        this.modal.innerHTML = `
-            <!-- Header -->
-            <div class="flex items-center justify-between p-4 border-b border-slate-700 bg-gradient-to-r from-purple-600 to-pink-600">
-                <div class="flex items-center gap-2">
-                    <i data-lucide="sparkles" class="w-5 h-5 text-white"></i>
-                    <h3 class="font-semibold text-white">Asistente IA</h3>
+        const modalHTML = `
+        <div id="ai-chat-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
+            <!-- Modal container -->
+            <div class="bg-slate-800 rounded-xl shadow-2xl flex flex-col max-w-4xl w-full h-[90vh]">
+                <!-- Header -->
+                <div class="flex items-center justify-between p-4 border-b border-slate-700 bg-slate-900">
+                    <div class="flex items-center gap-3">
+                        <i data-lucide="graduation-cap" class="w-6 h-6 text-slate-400"></i>
+                        <h2 class="text-xl font-semibold text-slate-200">Profesor</h2>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button id="ai-clear-chat-btn" class="p-2 hover:bg-slate-700 rounded-lg transition-colors" title="Borrar conversación">
+                            <i data-lucide="trash-2" class="w-5 h-5 text-slate-400"></i>
+                        </button>
+                        <button id="ai-close-btn" class="p-2 hover:bg-slate-700 rounded-lg transition-colors">
+                            <i data-lucide="x" class="w-5 h-5 text-slate-400"></i>
+                        </button>
+                    </div>
                 </div>
-                <div class="flex items-center gap-2">
-                    <button id="ai-chat-clear-btn" class="p-1.5 rounded-lg hover:bg-white/10 transition-colors" title="Limpiar chat">
-                        <i data-lucide="trash-2" class="w-4 h-4 text-white"></i>
-                    </button>
-                    <button id="ai-chat-close-btn" class="p-1.5 rounded-lg hover:bg-white/10 transition-colors" title="Cerrar">
-                        <i data-lucide="x" class="w-4 h-4 text-white"></i>
-                    </button>
-                </div>
-            </div>
             
             <!-- Contexto actual -->
             <div class="px-4 py-2 bg-slate-900/50 border-b border-slate-700">
@@ -141,7 +139,10 @@ class AIChatModal {
                 </div>
                 
                 <!-- Estado de carga del índice -->
-                <div id="ai-index-status" class="mt-2 text-xs text-slate-500"></div>
+                <div id="ai-index-status" class="mt-2 flex items-center gap-2">
+                    <span class="hidden" id="ai-status-icon"></span>
+                    <span class="text-xs text-slate-500" id="ai-status-text"></span>
+                </div>
             </div>
         `;
         
@@ -212,7 +213,7 @@ class AIChatModal {
             }
             
             this.indexCache = index;
-            this.updateIndexStatus(`✅ ${index.length} fragmentos cargados`, 'success');
+            this.updateIndexStatus(index.length, 'success');
             this.updateContextInfo();
             
         } catch (error) {
@@ -238,16 +239,37 @@ class AIChatModal {
     /**
      * Actualiza el estado del índice en la UI
      */
-    updateIndexStatus(message, type = 'info') {
-        const statusEl = this.modal?.querySelector('#ai-index-status');
-        if (statusEl) {
-            statusEl.textContent = message;
-            statusEl.className = `mt-2 text-xs ${
-                type === 'error' ? 'text-red-400' :
-                type === 'success' ? 'text-green-400' :
-                type === 'warning' ? 'text-yellow-400' :
-                'text-slate-500'
-            }`;
+    updateIndexStatus(fragmentCount, type = 'info') {
+        const iconEl = this.modal?.querySelector('#ai-status-icon');
+        const textEl = this.modal?.querySelector('#ai-status-text');
+        
+        if (!iconEl || !textEl) return;
+        
+        if (type === 'success' && typeof fragmentCount === 'number') {
+            // Mostrar "Recursos" con círculo verde y tooltip
+            iconEl.className = 'w-2 h-2 rounded-full bg-green-500';
+            iconEl.classList.remove('hidden');
+            iconEl.title = `${fragmentCount} fragmentos cargados`;
+            textEl.textContent = 'Recursos';
+            textEl.className = 'text-xs text-slate-400';
+        } else if (type === 'warning') {
+            // Sin recursos
+            iconEl.className = 'w-2 h-2 rounded-full bg-yellow-500';
+            iconEl.classList.remove('hidden');
+            iconEl.title = 'Sin índice cargado';
+            textEl.textContent = 'Solo apuntes';
+            textEl.className = 'text-xs text-slate-400';
+        } else if (type === 'error') {
+            iconEl.className = 'w-2 h-2 rounded-full bg-red-500';
+            iconEl.classList.remove('hidden');
+            iconEl.title = 'Error cargando recursos';
+            textEl.textContent = 'Sin recursos';
+            textEl.className = 'text-xs text-slate-400';
+        } else {
+            // Cargando
+            iconEl.classList.add('hidden');
+            textEl.textContent = typeof fragmentCount === 'string' ? fragmentCount : 'Cargando...';
+            textEl.className = 'text-xs text-slate-500';
         }
     }
     
