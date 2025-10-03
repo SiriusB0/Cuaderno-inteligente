@@ -10,6 +10,7 @@ class DataManager {
         this.listeners = new Map();
         this.syncEnabled = true; // Habilitar sincronización con Supabase
         this.syncQueue = []; // Cola de operaciones pendientes
+        this.loadFromSupabase(); // Cargar datos desde Supabase al iniciar
     }
     
     /**
@@ -542,6 +543,72 @@ class DataManager {
 
         for (const operation of queue) {
             await this.syncToSupabase(operation.endpoint, operation.method, operation.data);
+        }
+    }
+
+    /**
+     * Carga datos iniciales desde Supabase al arrancar la app
+     * Esto permite recuperar datos en cualquier dispositivo o si se borra localStorage
+     */
+    async loadFromSupabase() {
+        console.log('[Load] 🔄 Cargando datos desde Supabase...');
+        
+        try {
+            // Cargar subjects
+            const subjectsResponse = await fetch('/api/subjects');
+            if (subjectsResponse.ok) {
+                const subjectsData = await subjectsResponse.json();
+                if (subjectsData.success && subjectsData.subjects.length > 0) {
+                    this.data.subjects = subjectsData.subjects;
+                    console.log(`[Load] ✅ ${subjectsData.subjects.length} materias cargadas`);
+                }
+            }
+
+            // Para cada subject, cargar sus topics
+            for (const subject of this.data.subjects) {
+                const topicsResponse = await fetch(`/api/topics?subjectId=${subject.id}`);
+                if (topicsResponse.ok) {
+                    const topicsData = await topicsResponse.json();
+                    if (topicsData.success && topicsData.topics.length > 0) {
+                        // Agregar topics que no existan en local
+                        topicsData.topics.forEach(topic => {
+                            if (!this.data.topics.find(t => t.id === topic.id)) {
+                                this.data.topics.push(topic);
+                            }
+                        });
+                    }
+                }
+
+                // Cargar eventos de este subject
+                const eventsResponse = await fetch(`/api/events?subjectId=${subject.id}`);
+                if (eventsResponse.ok) {
+                    const eventsData = await eventsResponse.json();
+                    if (eventsData.success && eventsData.events.length > 0) {
+                        if (!this.data.events) this.data.events = {};
+                        this.data.events[subject.id] = eventsData.events;
+                    }
+                }
+            }
+
+            // Para cada topic, cargar sus pages
+            for (const topic of this.data.topics) {
+                const pagesResponse = await fetch(`/api/list-pages?topicId=${topic.id}`);
+                if (pagesResponse.ok) {
+                    const pagesData = await pagesResponse.json();
+                    if (pagesData.success && pagesData.pages.length > 0) {
+                        this.data.pages[topic.id] = pagesData.pages;
+                    }
+                }
+            }
+
+            // Guardar en localStorage
+            this.save();
+            console.log('[Load] ✅ Todos los datos cargados y sincronizados con localStorage');
+            this.emit('dataLoaded', this.data);
+
+        } catch (error) {
+            console.warn('[Load] ⚠️ Error cargando desde Supabase:', error);
+            console.warn('[Load] Usando datos de localStorage');
         }
     }
 }

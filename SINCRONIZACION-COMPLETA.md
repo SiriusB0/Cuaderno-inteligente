@@ -75,6 +75,44 @@ Si hay un error:
 
 ---
 
+## 🔄 Carga Inicial Automática (NUEVO)
+
+### Al Abrir la Aplicación
+
+Cada vez que abres la app:
+
+1. ✅ Carga datos desde localStorage (rápido)
+2. ✅ En background, carga datos desde Supabase
+3. ✅ Sincroniza ambos (Supabase tiene prioridad)
+4. ✅ Guarda en localStorage
+
+### Logs que Verás
+
+```javascript
+[Load] 🔄 Cargando datos desde Supabase...
+[Load] ✅ 3 materias cargadas
+[Load] ✅ Todos los datos cargados y sincronizados con localStorage
+```
+
+### Casos de Uso
+
+**📱 Abrir en otro dispositivo:**
+- Abre la app desde tu celular/tablet
+- Automáticamente carga todos tus datos de Supabase
+- Todo está sincronizado
+
+**🗑️ Borrar localStorage:**
+- Borras caché del navegador por error
+- Recargas la página
+- Automáticamente recupera todo desde Supabase
+
+**💻 Nuevo navegador:**
+- Instalas otro navegador
+- Abres tu app
+- Todos tus datos están ahí
+
+---
+
 ## 🔧 Control Manual (Avanzado)
 
 ### Deshabilitar Sincronización Temporalmente
@@ -230,8 +268,14 @@ this.dataManager.syncToSupabase('quizzes', 'POST', collection);
 - Cola de reintentos
 - Logs detallados
 
+### ✅ Completado (NUEVO)
+- **Carga automática desde Supabase al iniciar la app**
+  - Al abrir la aplicación, carga TODOS los datos desde Supabase
+  - Funciona en cualquier dispositivo/navegador
+  - Si borras localStorage, recupera todo automáticamente
+  - Logs: `[Load] 🔄 Cargando datos desde Supabase...`
+
 ### ⏳ Opcional (Si lo Necesitas)
-- Carga inicial desde Supabase al abrir la app
 - Sincronización de recursos (archivos)
 - Sincronización de subtasks
 - Sincronización de quiz collections
