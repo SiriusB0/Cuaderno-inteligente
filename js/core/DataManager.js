@@ -8,6 +8,8 @@ class DataManager {
     constructor() {
         this.data = this.initializeData();
         this.listeners = new Map();
+        this.syncEnabled = true; // Habilitar sincronización con Supabase
+        this.syncQueue = []; // Cola de operaciones pendientes
     }
     
     /**
@@ -158,6 +160,9 @@ class DataManager {
             this.save();
             this.emit('subjectCreated', subject);
             
+            // Sincronizar con Supabase en background
+            this.syncToSupabase('subjects', 'POST', subject);
+            
             return subject;
         } catch (error) {
             console.error('Error creando materia:', error);
@@ -172,6 +177,9 @@ class DataManager {
         this.data.subjects[index] = { ...this.data.subjects[index], ...updates };
         this.save();
         this.emit('subjectUpdated', this.data.subjects[index]);
+        
+        // Sincronizar con Supabase
+        this.syncToSupabase('subjects', 'PUT', { id, ...updates });
         
         return this.data.subjects[index];
     }
@@ -191,6 +199,9 @@ class DataManager {
         
         this.save();
         this.emit('subjectDeleted', id);
+        
+        // Sincronizar con Supabase
+        this.syncToSupabase('subjects', 'DELETE', { id });
     }
     
     // === GESTIÓN DE TEMAS ===
@@ -226,6 +237,9 @@ class DataManager {
             this.save();
             this.emit('topicCreated', topic);
             
+            // Sincronizar con Supabase
+            this.syncToSupabase('topics', 'POST', topic);
+            
             return topic;
         } catch (error) {
             console.error('Error creando tema:', error);
@@ -241,6 +255,9 @@ class DataManager {
         this.save();
         this.emit('topicUpdated', this.data.topics[index]);
         
+        // Sincronizar con Supabase
+        this.syncToSupabase('topics', 'PUT', { id, ...updates });
+        
         return this.data.topics[index];
     }
     
@@ -251,6 +268,9 @@ class DataManager {
         
         this.save();
         this.emit('topicDeleted', id);
+        
+        // Sincronizar con Supabase
+        this.syncToSupabase('topics', 'DELETE', { id });
     }
     
     // === GESTIÓN DE PÁGINAS ===
@@ -285,6 +305,9 @@ class DataManager {
             this.save();
             this.emit('pageCreated', { topicId, page });
             
+            // Sincronizar con Supabase
+            this.syncToSupabase('save-page', 'POST', { topicId, ...page });
+            
             return page;
         } catch (error) {
             console.error('Error creando página:', error);
@@ -302,6 +325,9 @@ class DataManager {
         this.save();
         this.emit('pageUpdated', { topicId, page: pages[index] });
         
+        // Sincronizar con Supabase
+        this.syncToSupabase('save-page', 'POST', { topicId, pageId, ...updates });
+        
         return pages[index];
     }
     
@@ -311,6 +337,9 @@ class DataManager {
         this.data.pages[topicId] = this.data.pages[topicId].filter(p => p.id !== pageId);
         this.save();
         this.emit('pageDeleted', { topicId, pageId });
+        
+        // Sincronizar con Supabase
+        this.syncToSupabase('delete-page', 'DELETE', { pageId });
         
         return true;
     }
@@ -395,6 +424,9 @@ class DataManager {
             this.save();
             this.emit('eventCreated', { subjectId, event });
             
+            // Sincronizar con Supabase
+            this.syncToSupabase('events', 'POST', { subjectId, ...event });
+            
             return event;
         } catch (error) {
             console.error('Error creando evento:', error);
@@ -415,6 +447,9 @@ class DataManager {
         this.save();
         this.emit('eventUpdated', { subjectId, event: events[index] });
         
+        // Sincronizar con Supabase
+        this.syncToSupabase('events', 'PUT', { id: eventId, ...updates });
+        
         return events[index];
     }
     
@@ -428,7 +463,86 @@ class DataManager {
         this.save();
         this.emit('eventDeleted', { subjectId, eventId });
         
+        // Sincronizar con Supabase
+        this.syncToSupabase('events', 'DELETE', { id: eventId });
+        
         return true;
+    }
+    
+    // === SINCRONIZACIÓN CON SUPABASE ===
+    
+    /**
+     * Sincroniza una operación con Supabase en background
+     * @param {string} endpoint - Endpoint de la API (subjects, topics, save-page, etc.)
+     * @param {string} method - Método HTTP (POST, PUT, DELETE)
+     * @param {object} data - Datos a enviar
+     */
+    async syncToSupabase(endpoint, method, data) {
+        if (!this.syncEnabled) {
+            console.log('[Sync] Sincronización deshabilitada');
+            return;
+        }
+
+        try {
+            const url = `/api/${endpoint}`;
+            const options = {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            };
+
+            // Para GET no enviamos body
+            if (method !== 'GET') {
+                options.body = JSON.stringify(data);
+            }
+
+            console.log(`[Sync] ${method} ${url}`, data);
+
+            const response = await fetch(url, options);
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.error || 'Error en la sincronización');
+            }
+
+            console.log(`[Sync] ✅ Éxito:`, result);
+            this.emit('syncSuccess', { endpoint, method, data, result });
+
+        } catch (error) {
+            console.warn(`[Sync] ⚠️ Error sincronizando con Supabase:`, error);
+            console.warn('[Sync] Los datos están guardados en localStorage');
+            
+            // Agregar a cola de reintentos (opcional)
+            this.syncQueue.push({ endpoint, method, data, timestamp: Date.now() });
+            this.emit('syncError', { endpoint, method, data, error: error.message });
+        }
+    }
+
+    /**
+     * Habilita o deshabilita la sincronización con Supabase
+     */
+    setSyncEnabled(enabled) {
+        this.syncEnabled = enabled;
+        console.log(`[Sync] Sincronización ${enabled ? 'habilitada' : 'deshabilitada'}`);
+    }
+
+    /**
+     * Reintentar operaciones pendientes en la cola
+     */
+    async retrySyncQueue() {
+        if (this.syncQueue.length === 0) {
+            console.log('[Sync] No hay operaciones pendientes');
+            return;
+        }
+
+        console.log(`[Sync] Reintentando ${this.syncQueue.length} operaciones pendientes...`);
+        const queue = [...this.syncQueue];
+        this.syncQueue = [];
+
+        for (const operation of queue) {
+            await this.syncToSupabase(operation.endpoint, operation.method, operation.data);
+        }
     }
 }
 
