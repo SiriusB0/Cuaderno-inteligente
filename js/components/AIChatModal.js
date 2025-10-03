@@ -144,7 +144,12 @@ class AIChatModal {
                     <span class="text-xs text-slate-500" id="ai-status-text"></span>
                 </div>
             </div>
+        </div>
         `;
+        
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = modalHTML;
+        this.modal = tempDiv.firstElementChild;
         
         document.body.appendChild(this.modal);
         this.attachEventListeners();
