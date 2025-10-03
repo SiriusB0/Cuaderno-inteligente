@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-gray-100 dark:bg-gray-900">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cuaderno Inteligente</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .editor-content { outline: none; height: 100%; padding: 1rem; }
+        [contenteditable]:focus { box-shadow: none; }
+        .highlight { background-color: #fef08a; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        .dark ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background-color: #94a3b8; border-radius: 20px; border: 3px solid transparent; background-clip: content-box; }
+        .dark ::-webkit-scrollbar-thumb { background-color: #475569; }
+
+        .subject-card, .topic-card {
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+        .subject-card:hover, .topic-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        }
+        
+        .page-thumbnail {
+            transition: all 0.2s ease-in-out;
+            border: 2px solid transparent;
+        }
+        .page-thumbnail.active {
+            border-color: #6366f1; /* indigo-500 */
+            box-shadow: 0 0 0 2px #6366f1;
+        }
+
+        .editor-btn {
+            @apply p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors duration-200;
+        }
+        .editor-btn i { @apply w-4 h-4; }
+        .editor-btn.active {
+            @apply bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400;
+        }
+        
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: #10b981;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+        }
+        
+        .notification.show {
+            transform: translateX(0);
+        }
+        
+        .notification.error {
+            background: #ef4444;
+        }
+    </style>
+</head>
+<body class="h-full text-gray-800 dark:text-gray-200 antialiased">
+    <!-- Notification Container -->
+    <div id="notification-container"></div>
+    <div id="app" class="h-screen w-full">
+        <!-- VISTA DE MATERIAS (DASHBOARD) -->
+        <div id="subjects-view" class="p-8 md:p-12">
+            <header class="mb-10">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center gap-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-indigo-500"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"></path></svg>
+                        <h1 class="text-4xl font-extrabold text-gray-900 dark:text-white">Mis Cuadernos</h1>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button id="export-data-btn" class="px-3 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors duration-200" title="Exportar datos">
+                            <i data-lucide="download" class="w-4 h-4"></i>
+                        </button>
+                        <button id="reset-data-btn" class="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors duration-200" title="Resetear datos">
+                            <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                        </button>
+                        <button id="add-subject-btn" class="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors duration-200">
+                            <i data-lucide="plus" class="w-4 h-4 inline mr-2"></i>Nueva Materia
+                        </button>
+                    </div>
+                </div>
+                <p class="text-gray-500 dark:text-gray-400">Selecciona una materia para empezar a estudiar.</p>
+            </header>
+            <div id="subjects-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                <!-- Las tarjetas de materia se renderizarán aquí -->
+            </div>
+        </div>
+
+        <!-- VISTA DE TEMAS -->
+        <div id="topics-view" class="p-8 md:p-12 hidden">
+            <header class="mb-10">
+                 <button id="back-to-subjects" class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-indigo-500 mb-4">
+                    <i data-lucide="arrow-left" class="w-4 h-4"></i> Volver a Mis Cuadernos
+                </button>
+                <div class="flex items-center justify-between mb-4">
+                    <h1 id="topic-view-title" class="text-4xl font-extrabold text-gray-900 dark:text-white"></h1>
+                    <button id="add-topic-btn" class="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors duration-200">
+                        <i data-lucide="plus" class="w-4 h-4 inline mr-2"></i>Nuevo Tema
+                    </button>
+                </div>
+                <p class="text-gray-500 dark:text-gray-400">Selecciona un tema para ver tus apuntes y recursos.</p>
+            </header>
+            <div id="topics-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                <!-- Las tarjetas de tema se renderizarán aquí -->
+            </div>
+        </div>
+
+        <!-- VISTA DE ESTUDIO (EDITOR) -->
+        <div id="study-view" class="h-full w-full flex-col hidden">
+            <!-- Header de la vista de estudio -->
+            <header class="flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
+                <div class="flex items-center gap-3">
+                    <button id="back-to-topics" class="p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700">
+                        <i data-lucide="arrow-left"></i>
+                    </button>
+                    <div>
+                        <h2 id="study-view-title" class="text-lg font-bold"></h2>
+                        <p id="study-view-breadcrumb" class="text-sm text-gray-500"></p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="study-ai-chat-btn" class="tool-btn"><i data-lucide="sparkles"></i> Asistente IA</button>
+                    <button id="study-concept-map-btn" class="tool-btn"><i data-lucide="share-2"></i> Mapa Conceptual</button>
+                    <button id="study-flashcards-btn" class="tool-btn"><i data-lucide="layers"></i> Flashcards</button>
+                </div>
+            </header>
+            
+            <!-- Contenido principal de la vista de estudio -->
+            <div class="flex flex-1 overflow-hidden">
+                <!-- Panel de Páginas -->
+                <aside class="w-48 bg-gray-50 dark:bg-gray-800/50 p-3 flex flex-col border-r border-gray-200 dark:border-gray-700">
+                    <h3 class="text-sm font-semibold mb-3 px-1">Páginas</h3>
+                    <div id="pages-list" class="flex-1 space-y-2 overflow-y-auto">
+                        <!-- Thumbnails de las páginas -->
+                    </div>
+                    <button id="add-page-btn" class="mt-3 w-full flex items-center justify-center gap-2 text-sm py-2 rounded-md bg-indigo-500 text-white hover:bg-indigo-600">
+                        <i data-lucide="plus" class="w-4 h-4"></i> Nueva Página
+                    </button>
+                </aside>
+                
+                <!-- Editor Principal -->
+                <main class="flex-1 flex flex-col bg-white dark:bg-gray-800">
+                    <div class="p-2 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between flex-wrap gap-2">
+                        <div class="flex items-center gap-1">
+                            <button class="editor-btn" data-command="bold" title="Negrita (Ctrl+B)" tabindex="0"><i data-lucide="bold"></i></button>
+                            <button class="editor-btn" data-command="italic" title="Cursiva (Ctrl+I)" tabindex="0"><i data-lucide="italic"></i></button>
+                            <button class="editor-btn" data-command="underline" title="Subrayado (Ctrl+U)" tabindex="0"><i data-lucide="underline"></i></button>
+                            <button class="editor-btn" data-command="strikeThrough" title="Tachado" tabindex="0"><i data-lucide="strikethrough"></i></button>
+                            <div class="w-px h-6 bg-gray-200 dark:bg-gray-600 mx-2"></div>
+                            <button class="editor-btn" id="highlight-btn" title="Resaltar texto" tabindex="0"><i data-lucide="highlighter"></i></button>
+                            <div class="w-px h-6 bg-gray-200 dark:bg-gray-600 mx-2"></div>
+                            <button class="editor-btn" data-command="insertUnorderedList" title="Lista con viñetas" tabindex="0"><i data-lucide="list"></i></button>
+                            <button class="editor-btn" data-command="insertOrderedList" title="Lista numerada" tabindex="0"><i data-lucide="list-ordered"></i></button>
+                            <div class="w-px h-6 bg-gray-200 dark:bg-gray-600 mx-2"></div>
+                            <button class="editor-btn font-semibold" data-command="formatBlock" data-value="h1" title="Encabezado 1" tabindex="0">H1</button>
+                            <button class="editor-btn font-semibold" data-command="formatBlock" data-value="h2" title="Encabezado 2" tabindex="0">H2</button>
+                            <button class="editor-btn font-semibold" data-command="formatBlock" data-value="h3" title="Encabezado 3" tabindex="0">H3</button>
+                            <button class="editor-btn font-semibold" data-command="formatBlock" data-value="p" title="Párrafo normal" tabindex="0">P</button>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span id="save-status" class="text-sm text-gray-500">Guardado</span>
+                            <button id="save-btn" class="editor-btn" title="Guardar (Ctrl+S)" tabindex="0"><i data-lucide="save"></i></button>
+                        </div>
+                    </div>
+                    <div class="flex-1 overflow-y-auto">
+                         <div id="editor-content" class="prose dark:prose-invert max-w-none editor-content" contenteditable="true" role="textbox" aria-label="Editor de contenido" tabindex="0"></div>
+                    </div>
+                </main>
+                
+                <!-- Panel de Recursos -->
+                <aside class="w-72 bg-gray-50 dark:bg-gray-800/50 p-4 border-l border-gray-200 dark:border-gray-700 flex flex-col">
+                    <h3 class="text-sm font-semibold mb-3">Recursos del Tema</h3>
+                    <div id="resource-list" class="flex-1 space-y-2 overflow-y-auto">
+                        <!-- Lista de recursos -->
+                    </div>
+                    <label for="file-upload" class="mt-3 cursor-pointer w-full flex items-center justify-center gap-2 text-sm py-2 px-3 rounded-md border-2 border-dashed border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700">
+                        <i data-lucide="upload-cloud" class="w-4 h-4"></i> Subir Recurso
+                        <input type="file" id="file-upload" class="hidden">
+                    </label>
+                </aside>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODALS -->
+    <!-- Modal genérico para IA, Mapas, Flashcards, Visor de Documentos -->
+    <div id="modal-container" class="fixed inset-0 bg-black/60 hidden items-center justify-center p-4 z-50">
+        <div id="modal-content" class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full flex flex-col max-h-[90vh]">
+            <div class="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700">
+                <h2 id="modal-title" class="text-xl font-bold"></h2>
+                <button id="modal-close-btn" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"><i data-lucide="x"></i></button>
+            </div>
+            <div id="modal-body" class="flex-1 p-6 overflow-y-auto">
+                <!-- Contenido del modal se inyectará aquí -->
+            </div>
+        </div>
+    </div>
+
+<script type="module">
+    // --- SISTEMA DE NOTIFICACIONES ---
+    class NotificationManager {
+        static show(message, type = 'success', duration = 3000) {
+            const container = document.getElementById('notification-container');
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            
+            container.appendChild(notification);
+            setTimeout(() => notification.classList.add('show'), 100);
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => container.removeChild(notification), 300);
+            }, duration);
+        }
+    }
+
+    // --- VALIDACIÓN Y SANITIZACIÓN ---
+    class DataValidator {
+        static sanitizeHTML(html) {
+            const div = document.createElement('div');
+            div.textContent = html;
+            return div.innerHTML;
+        }
+        
+        static validateSubjectName(name) {
+            return name && name.trim().length > 0 && name.trim().length <= 100;
+        }
+        
+        static validateTopicName(name) {
+            return name && name.trim().length > 0 && name.trim().length <= 100;
+        }
+    }
+
+    // --- GESTIÓN DE LOCALSTORAGE ---
+    class StorageManager {
+        static STORAGE_KEY = 'cuaderno-inteligente-data';
+        
+        static saveData(data) {
+            try {
+                localStorage.setItem(this.STORAGE_KEY, JSON.stringify(data));
+                return true;
+            } catch (error) {
+                console.error('Error guardando en localStorage:', error);
+                NotificationManager.show('Error al guardar datos localmente', 'error');
+                return false;
+            }
+        }
+        
+        static loadData() {
+            try {
+                const data = localStorage.getItem(this.STORAGE_KEY);
+                return data ? JSON.parse(data) : null;
+            } catch (error) {
+                console.error('Error cargando desde localStorage:', error);
+                return null;
+            }
+        }
+        
+        static clearData() {
+            try {
+                localStorage.removeItem(this.STORAGE_KEY);
+                return true;
+            } catch (error) {
+                console.error('Error limpiando localStorage:', error);
+                return false;
+            }
+        }
+    }
+    // --- BASE DE DATOS CON PERSISTENCIA ---
+    function getDefaultData() {
+        return {
+            subjects: [
+                { id: 1, name: "Cálculo I", imageUrl: "https://placehold.co/600x400/6366f1/ffffff?text=Cálculo" },
+                { id: 2, name: "Programación Orientada a Objetos", imageUrl: "https://placehold.co/600x400/ec4899/ffffff?text=POO" },
+                { id: 3, name: "Física de Ondas", imageUrl: "https://placehold.co/600x400/22c55e/ffffff?text=Física" }
+            ],
+            topics: [
+                { id: 101, subjectId: 1, name: "Derivadas", imageUrl: "https://placehold.co/600x400/818cf8/ffffff?text=f'(x)" },
+                { id: 102, subjectId: 1, name: "Integrales", imageUrl: "https://placehold.co/600x400/a78bfa/ffffff?text=∫f(x)dx" },
+                { id: 201, subjectId: 2, name: "Pilares de POO", imageUrl: "https://placehold.co/600x400/f472b6/ffffff?text=Herencia" },
+            ],
+            pages: { // topicId -> array of pages
+                101: [
+                    { id: 1011, content: "<h1>Concepto de la Derivada</h1><p>La derivada de una función matemática es la razón or velocidad de cambio de una función en un determinado punto.</p>" },
+                    { id: 1012, content: "<h2>Reglas de Derivación</h2><ul><li>Regla de la potencia</li><li>Regla del producto</li></ul>" },
+                ],
+                102: [{ id: 1021, content: "<h1>Integrales Definidas</h1><p>...</p>" }],
+                201: [{ id: 2011, content: "<h1>Encapsulamiento</h1><p>...</p>" }],
+            },
+            resources: { // topicId -> array of resources
+                101: [
+                    { id: 1, name: "guia_derivadas.pdf", type: "pdf" },
+                    { id: 2, name: "formulas.txt", type: "txt" },
+                ]
+            }
+        };
+    }
+    
+    // Cargar datos desde localStorage o usar datos por defecto
+    let db = StorageManager.loadData() || getDefaultData();
+    
+    // Debug: mostrar datos cargados
+    console.log('Datos cargados:', db);
+    
+    // Función para guardar cambios en localStorage
+    function saveToStorage() {
+        StorageManager.saveData(db);
+    }
+
+    // --- ESTADO DE LA APLICACIÓN ---
+    let activeSubjectId = null;
+    let activeTopicId = null;
+    let activePageIndex = 0;
+    
+    // --- SELECTORES DE ELEMENTOS DEL DOM ---
+    const views = {
+        subjects: document.getElementById('subjects-view'),
+        topics: document.getElementById('topics-view'),
+        study: document.getElementById('study-view'),
+    };
+    const subjectsGrid = document.getElementById('subjects-grid');
+    const topicsGrid = document.getElementById('topics-grid');
+    const pagesList = document.getElementById('pages-list');
+    const editorContent = document.getElementById('editor-content');
+    
+    // --- FUNCIONES DE NAVEGACIÓN Y RENDERIZADO ---
+    function navigateTo(viewName) {
+        Object.values(views).forEach(v => v.classList.add('hidden'));
+        if (views[viewName]) {
+            views[viewName].classList.remove('hidden');
+            if(viewName === 'study') views[viewName].classList.add('flex');
+        }
+    }
+    
+    function renderSubjects() {
+        subjectsGrid.innerHTML = '';
+        db.subjects.forEach(subject => {
+            const card = document.createElement('div');
+            card.className = 'subject-card cursor-pointer bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden';
+            card.innerHTML = `
+                <img src="${subject.imageUrl}" alt="${subject.name}" class="w-full h-32 object-cover">
+                <div class="p-4">
+                    <h3 class="font-bold text-lg">${subject.name}</h3>
+                </div>
+            `;
+            card.addEventListener('click', () => selectSubject(subject.id));
+            card.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    selectSubject(subject.id);
+                }
+            });
+            card.setAttribute('tabindex', '0');
+            card.setAttribute('role', 'button');
+            card.setAttribute('aria-label', `Abrir materia ${subject.name}`);
+            subjectsGrid.appendChild(card);
+        });
+    }
+    
+    function renderTopics(subjectId) {
+        try {
+            const subject = db.subjects.find(s => s.id === subjectId);
+            if (!subject) throw new Error('Materia no encontrada');
+            
+            document.getElementById('topic-view-title').textContent = subject.name;
+            topicsGrid.innerHTML = '';
+            
+            const topics = db.topics.filter(t => t.subjectId === subjectId);
+            if (topics.length === 0) {
+                topicsGrid.innerHTML = '<p class="col-span-full text-center text-gray-500">No hay temas en esta materia aún.</p>';
+                return;
+            }
+            
+            topics.forEach(topic => {
+                const card = document.createElement('div');
+                card.className = 'topic-card cursor-pointer bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden';
+                card.innerHTML = `
+                    <img src="${topic.imageUrl}" alt="${topic.name}" class="w-full h-32 object-cover">
+                    <div class="p-4">
+                        <h3 class="font-bold text-lg">${topic.name}</h3>
+                    </div>
+                `;
+                card.addEventListener('click', () => selectTopic(topic.id));
+                card.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        selectTopic(topic.id);
+                    }
+                });
+                card.setAttribute('tabindex', '0');
+                card.setAttribute('role', 'button');
+                card.setAttribute('aria-label', `Abrir tema ${topic.name}`);
+                topicsGrid.appendChild(card);
+            });
+        } catch (error) {
+            NotificationManager.show('Error al cargar los temas', 'error');
+            console.error(error);
+        }
+    }
+
+    function renderStudyView(topicId) {
+        try {
+            const topic = db.topics.find(t => t.id === topicId);
+            const subject = db.subjects.find(s => s.id === topic.subjectId);
+            
+            if (!topic || !subject) throw new Error('Tema o materia no encontrados');
+            
+            document.getElementById('study-view-title').textContent = topic.name;
+            document.getElementById('study-view-breadcrumb').textContent = `En ${subject.name}`;
+            
+            if (!db.pages[topicId]) {
+                db.pages[topicId] = [{ 
+                    id: Date.now(), 
+                    content: `<h1>${topic.name}</h1><p>Empieza a escribir tus apuntes aquí...</p>` 
+                }];
+            }
+            
+            activePageIndex = 0;
+            renderPagesList();
+            renderEditorContent();
+            renderResources();
+        } catch (error) {
+            NotificationManager.show('Error al cargar la vista de estudio', 'error');
+            console.error(error);
+        }
+    }
+
+    function renderPagesList() {
+        pagesList.innerHTML = '';
+        const pages = db.pages[activeTopicId] || [];
+        
+        if (pages.length === 0) {
+            pagesList.innerHTML = '<p class="text-xs text-center text-gray-400">No hay páginas aún</p>';
+            return;
+        }
+        
+        pages.forEach((page, index) => {
+            const thumb = document.createElement('div');
+            thumb.className = `page-thumbnail cursor-pointer p-2 rounded-md bg-white dark:bg-gray-700 shadow-sm ${index === activePageIndex ? 'active' : ''}`;
+            thumb.innerHTML = `<p class="text-sm font-medium">Página ${index + 1}</p>`;
+            thumb.addEventListener('click', () => switchToPage(index));
+            thumb.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    switchToPage(index);
+                }
+            });
+            thumb.setAttribute('tabindex', '0');
+            thumb.setAttribute('role', 'button');
+            thumb.setAttribute('aria-label', `Ir a página ${index + 1}`);
+            pagesList.appendChild(thumb);
+        });
+    }
+
+    function renderEditorContent() {
+        const pages = db.pages[activeTopicId] || [];
+        const content = pages[activePageIndex]?.content || '';
+        editorContent.innerHTML = content;
+        updateToolbarState();
+    }
+
+    function renderResources() {
+        const resourceList = document.getElementById('resource-list');
+        resourceList.innerHTML = '';
+        const resources = db.resources[activeTopicId] || [];
+        if (resources.length === 0) {
+            resourceList.innerHTML = `<p class="text-xs text-center text-gray-400">No hay recursos adjuntos.</p>`;
+            return;
+        }
+        resources.forEach(res => {
+            const item = document.createElement('div');
+            item.className = 'flex items-center justify-between p-2 rounded-md bg-white dark:bg-gray-700 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600';
+            item.innerHTML = `
+                <div class="flex items-center gap-2">
+                    <i data-lucide="file-text" class="w-4 h-4 text-indigo-500"></i>
+                    <span class="text-sm truncate">${res.name}</span>
+                </div>
+            `;
+            item.addEventListener('click', () => viewResource(res));
+            resourceList.appendChild(item);
+        });
+        lucide.createIcons();
+    }
+
+    // --- MANEJO DE ESTADO Y DATOS ---
+    function selectSubject(id) {
+        try {
+            if (!db.subjects.find(s => s.id === id)) {
+                throw new Error('Materia no encontrada');
+            }
+            activeSubjectId = id;
+            renderTopics(id);
+            navigateTo('topics');
+        } catch (error) {
+            NotificationManager.show('Error al seleccionar materia', 'error');
+            console.error(error);
+        }
+    }
+
+    function selectTopic(id) {
+        try {
+            if (!db.topics.find(t => t.id === id)) {
+                throw new Error('Tema no encontrado');
+            }
+            activeTopicId = id;
+            renderStudyView(id);
+            navigateTo('study');
+        } catch (error) {
+            NotificationManager.show('Error al seleccionar tema', 'error');
+            console.error(error);
+        }
+    }
+    
+    function switchToPage(index) {
+        try {
+            // Guardar página actual antes de cambiar
+            if (activeTopicId && db.pages[activeTopicId] && db.pages[activeTopicId][activePageIndex]) {
+                saveCurrentPage();
+            }
+            
+            activePageIndex = index;
+            renderPagesList();
+            renderEditorContent();
+            editorContent.focus();
+        } catch (error) {
+            NotificationManager.show('Error al cambiar de página', 'error');
+            console.error(error);
+        }
+    }
+
+    function saveCurrentPage() {
+        try {
+            updateSaveStatus('saving');
+            
+            if (activeTopicId && db.pages[activeTopicId] && db.pages[activeTopicId][activePageIndex]) {
+                // Sanitizar contenido antes de guardar
+                const content = sanitizeContent(editorContent.innerHTML);
+                db.pages[activeTopicId][activePageIndex].content = content;
+                
+                // Guardar en localStorage
+                saveToStorage();
+                
+                setTimeout(() => {
+                    updateSaveStatus('saved');
+                }, 500);
+            }
+        } catch (error) {
+            console.error('Error guardando página:', error);
+            updateSaveStatus('error');
+            NotificationManager.show('Error al guardar la página', 'error');
+        }
+    }
+    
+    function sanitizeContent(html) {
+        // Básica protección XSS - remover scripts y eventos
+        const temp = document.createElement('div');
+        temp.innerHTML = html;
+        
+        // Remover elementos script
+        temp.querySelectorAll('script').forEach(el => el.remove());
+        
+        // Remover atributos de eventos
+        temp.querySelectorAll('*').forEach(el => {
+            Array.from(el.attributes).forEach(attr => {
+                if (attr.name.startsWith('on')) {
+                    el.removeAttribute(attr.name);
+                }
+            });
+        });
+        
+        return temp.innerHTML;
+    }
+    
+    function updateSaveStatus(status) {
+        const saveStatus = document.getElementById('save-status');
+        switch(status) {
+            case 'saving':
+                saveStatus.textContent = 'Guardando...';
+                saveStatus.className = 'text-sm text-yellow-500';
+                break;
+            case 'saved':
+                saveStatus.textContent = 'Guardado';
+                saveStatus.className = 'text-sm text-green-500';
+                break;
+            case 'unsaved':
+                saveStatus.textContent = 'Sin guardar';
+                saveStatus.className = 'text-sm text-gray-500';
+                break;
+            case 'error':
+                saveStatus.textContent = 'Error al guardar';
+                saveStatus.className = 'text-sm text-red-500';
+                break;
+        }
+    }
+    
+    function addPage() {
+        try {
+            if (!activeTopicId) throw new Error('No hay tema activo');
+            
+            // Guardar página actual antes de crear nueva
+            if (db.pages[activeTopicId] && db.pages[activeTopicId][activePageIndex]) {
+                saveCurrentPage();
+            }
+            
+            const newPage = { 
+                id: Date.now(), 
+                content: `<p>Nueva página...</p>`,
+                type: 'text'
+            };
+            
+            if (!db.pages[activeTopicId]) {
+                db.pages[activeTopicId] = [];
+            }
+            
+            db.pages[activeTopicId].push(newPage);
+            activePageIndex = db.pages[activeTopicId].length - 1;
+            
+            // Guardar en localStorage
+            saveToStorage();
+            
+            renderPagesList();
+            renderEditorContent();
+            editorContent.focus();
+            
+            NotificationManager.show('Nueva página creada');
+        } catch (error) {
+            NotificationManager.show('Error al crear página', 'error');
+            console.error(error);
+        }
+    }
+    
+    function addSubject() {
+        const name = prompt('Nombre de la nueva materia:');
+        if (!name || !DataValidator.validateSubjectName(name)) {
+            NotificationManager.show('Nombre de materia inválido', 'error');
+            return;
+        }
+        
+        try {
+            const newSubject = {
+                id: Date.now(),
+                name: name.trim(),
+                imageUrl: `https://placehold.co/600x400/6366f1/ffffff?text=${encodeURIComponent(name.trim())}`
+            };
+            
+            db.subjects.push(newSubject);
+            
+            // Guardar en localStorage
+            saveToStorage();
+            
+            renderSubjects();
+            NotificationManager.show('Materia creada correctamente');
+        } catch (error) {
+            NotificationManager.show('Error al crear materia', 'error');
+            console.error(error);
+        }
+    }
+    
+    function addTopic() {
+        if (!activeSubjectId) {
+            NotificationManager.show('No hay materia seleccionada', 'error');
+            return;
+        }
+        
+        const name = prompt('Nombre del nuevo tema:');
+        if (!name || !DataValidator.validateTopicName(name)) {
+            NotificationManager.show('Nombre de tema inválido', 'error');
+            return;
+        }
+        
+        try {
+            const newTopic = {
+                id: Date.now(),
+                subjectId: activeSubjectId,
+                name: name.trim(),
+                imageUrl: `https://placehold.co/600x400/818cf8/ffffff?text=${encodeURIComponent(name.trim())}`
+            };
+            
+            db.topics.push(newTopic);
+            
+            // Guardar en localStorage
+            saveToStorage();
+            
+            renderTopics(activeSubjectId);
+            NotificationManager.show('Tema creado correctamente');
+        } catch (error) {
+            NotificationManager.show('Error al crear tema', 'error');
+            console.error(error);
+        }
+    }
+
+    // --- EVENT LISTENERS ---
+    document.getElementById('back-to-subjects').addEventListener('click', () => navigateTo('subjects'));
+    document.getElementById('back-to-topics').addEventListener('click', () => {
+        saveCurrentPage();
+        navigateTo('topics');
+    });
+    
+    document.getElementById('add-page-btn').addEventListener('click', addPage);
+    document.getElementById('add-subject-btn').addEventListener('click', addSubject);
+    document.getElementById('add-topic-btn').addEventListener('click', addTopic);
+    document.getElementById('export-data-btn').addEventListener('click', exportData);
+    document.getElementById('reset-data-btn').addEventListener('click', resetData);
+    editorContent.addEventListener('blur', saveCurrentPage);
+
+    // --- FUNCIONES DEL EDITOR ---
+    function updateToolbarState() {
+        document.querySelectorAll('.editor-btn[data-command]').forEach(button => {
+            const command = button.dataset.command;
+            const isActive = document.queryCommandState(command);
+            button.classList.toggle('active', isActive);
+        });
+    }
+    
+    function executeCommand(command, value = null) {
+        try {
+            // Sanitizar valores de entrada
+            if (value && typeof value === 'string') {
+                value = DataValidator.sanitizeHTML(value);
+            }
+            
+            document.execCommand(command, false, value);
+            updateToolbarState();
+            updateSaveStatus('unsaved');
+        } catch (error) {
+            console.error('Error ejecutando comando del editor:', error);
+            NotificationManager.show('Error en el editor', 'error');
+        }
+    }
+    
+    // Editor toolbar
+    document.querySelectorAll('.editor-btn').forEach(button => {
+        button.addEventListener('click', (e) => {
+            const command = button.dataset.command;
+            const value = button.dataset.value || null;
+            
+            if (command) {
+                executeCommand(command, value);
+            } else if (button.id === 'highlight-btn') {
+                executeCommand('hiliteColor', '#fef08a');
+            }
+            
+            editorContent.focus();
+        });
+        
+        button.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                button.click();
+            }
+        });
+    });
+    
+    // Atajos de teclado
+    editorContent.addEventListener('keydown', (e) => {
+        if (e.ctrlKey || e.metaKey) {
+            switch(e.key.toLowerCase()) {
+                case 'b':
+                    e.preventDefault();
+                    executeCommand('bold');
+                    break;
+                case 'i':
+                    e.preventDefault();
+                    executeCommand('italic');
+                    break;
+                case 'u':
+                    e.preventDefault();
+                    executeCommand('underline');
+                    break;
+                case 's':
+                    e.preventDefault();
+                    saveCurrentPage();
+                    break;
+            }
+        }
+    });
+    
+    // Eventos del editor
+    editorContent.addEventListener('input', () => {
+        updateToolbarState();
+        updateSaveStatus('unsaved');
+    });
+    editorContent.addEventListener('selectionchange', () => updateToolbarState());
+    document.getElementById('save-btn').addEventListener('click', () => saveCurrentPage());
+    
+    // Auto-guardado cada 3 segundos si hay cambios
+    let autoSaveTimeout;
+    editorContent.addEventListener('input', () => {
+        clearTimeout(autoSaveTimeout);
+        autoSaveTimeout = setTimeout(() => {
+            saveCurrentPage();
+        }, 3000);
+    });
+
+    // --- MODALS LÓGICA ---
+    const modalContainer = document.getElementById('modal-container');
+    const modalTitle = document.getElementById('modal-title');
+    const modalBody = document.getElementById('modal-body');
+
+    function openModal(title, content) {
+        modalTitle.textContent = title;
+        modalBody.innerHTML = '';
+        if (typeof content === 'string') {
+            modalBody.innerHTML = content;
+        } else {
+            modalBody.appendChild(content);
+        }
+        modalContainer.style.display = 'flex';
+    }
+
+    document.getElementById('modal-close-btn').addEventListener('click', () => {
+        modalContainer.style.display = 'none';
+    });
+    
+    function viewResource(resource) {
+        let content = `<p>Visualizador no disponible para este tipo de archivo.</p><strong>Archivo:</strong> ${resource.name}`;
+        if(resource.type === 'pdf') {
+            content = `<iframe src="https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf" class="w-full h-[60vh]"></iframe>`;
+        } else if (resource.type === 'txt') {
+            content = `<pre class="bg-gray-100 dark:bg-gray-900 p-4 rounded-md text-sm whitespace-pre-wrap">Contenido de ejemplo para ${resource.name}.</pre>`;
+        }
+        openModal(`Visor de: ${resource.name}`, content);
+        document.getElementById('modal-content').classList.add('max-w-4xl'); // Make resource modal wider
+    }
+
+    // Event listeners for study tools buttons
+    document.getElementById('study-ai-chat-btn').addEventListener('click', () => {
+        openModal('Asistente IA', '<p>Aquí iría la interfaz de chat con la IA...</p>');
+        document.getElementById('modal-content').classList.remove('max-w-4xl');
+    });
+    document.getElementById('study-concept-map-btn').addEventListener('click', () => {
+        openModal('Mapa Conceptual', '<p>Aquí se generaría el mapa conceptual a partir de los apuntes...</p>');
+         document.getElementById('modal-content').classList.add('max-w-4xl');
+    });
+    document.getElementById('study-flashcards-btn').addEventListener('click', () => {
+        openModal('Flashcards', '<p>Aquí se generarían las flashcards para repasar...</p>');
+        document.getElementById('modal-content').classList.remove('max-w-4xl');
+    });
+
+    // --- FUNCIONES DE UTILIDAD ---
+    function resetData() {
+        if (confirm('¿Estás seguro de que quieres resetear todos los datos? Esta acción no se puede deshacer.')) {
+            try {
+                StorageManager.clearData();
+                db = getDefaultData();
+                saveToStorage();
+                
+                // Reset estado
+                activeSubjectId = null;
+                activeTopicId = null;
+                activePageIndex = 0;
+                
+                renderSubjects();
+                navigateTo('subjects');
+                NotificationManager.show('Datos reseteados correctamente');
+            } catch (error) {
+                console.error('Error reseteando datos:', error);
+                NotificationManager.show('Error al resetear datos', 'error');
+            }
+        }
+    }
+    
+    function exportData() {
+        try {
+            const dataStr = JSON.stringify(db, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'cuaderno-backup.json';
+            link.click();
+            URL.revokeObjectURL(url);
+            NotificationManager.show('Datos exportados correctamente');
+        } catch (error) {
+            NotificationManager.show('Error al exportar datos', 'error');
+            console.error(error);
+        }
+    }
+
+    // --- INICIALIZACIÓN ---
+    // Guardar datos iniciales si es la primera vez
+    if (!StorageManager.loadData()) {
+        saveToStorage();
+        setTimeout(() => NotificationManager.show('¡Bienvenido al Cuaderno Inteligente!', 'success', 4000), 1000);
+    } else {
+        setTimeout(() => NotificationManager.show('Datos cargados desde localStorage', 'success', 2000), 1000);
+    }
+    
+    lucide.createIcons();
+    renderSubjects();
+    navigateTo('subjects');
+    
+    // Guardar automáticamente antes de cerrar la ventana
+    window.addEventListener('beforeunload', () => {
+        saveToStorage();
+    });
+
+</script>
+</body>
+</html>
+

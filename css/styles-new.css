@@ -1,0 +1,656 @@
+/* Estilos base para el Cuaderno Inteligente - Sin @apply */
+
+/* Variables CSS */
+:root {
+    --primary-color: #6366f1;
+    --primary-hover: #5855eb;
+    --secondary-color: #8b5cf6;
+    --success-color: #10b981;
+    --error-color: #ef4444;
+    --warning-color: #f59e0b;
+    --text-primary: #1f2937;
+    --text-secondary: #6b7280;
+    --bg-primary: #ffffff;
+    --bg-secondary: #f9fafb;
+    --border-color: #e5e7eb;
+}
+
+/* Dark mode variables */
+.dark {
+    --text-primary: #f9fafb;
+    --text-secondary: #d1d5db;
+    --bg-primary: #1f2937;
+    --bg-secondary: #111827;
+    --border-color: #374151;
+}
+
+/* Reset básico */
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    line-height: 1.6;
+    margin: 0;
+    padding: 0;
+}
+
+/* Botones del editor */
+.editor-btn {
+    padding: 0.5rem;
+    border-radius: 0.375rem;
+    color: #6b7280;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    outline: none;
+}
+
+.editor-btn:hover {
+    background-color: #e5e7eb;
+    color: #374151;
+}
+
+.editor-btn:focus {
+    outline: 2px solid #6366f1;
+    outline-offset: 2px;
+}
+
+.editor-btn.active {
+    background-color: #e0e7ff;
+    color: #6366f1;
+}
+
+.dark .editor-btn {
+    color: #d1d5db;
+}
+
+.dark .editor-btn:hover {
+    background-color: #374151;
+    color: #f9fafb;
+}
+
+.dark .editor-btn.active {
+    background-color: #312e81;
+    color: #a5b4fc;
+}
+
+/* Tarjetas de materias y temas */
+.subject-card, .topic-card {
+    transition: all 0.2s ease-in-out;
+    cursor: pointer;
+}
+
+.subject-card:hover, .topic-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+}
+
+.subject-card:focus, .topic-card:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+/* Miniaturas de páginas */
+.page-thumbnail {
+    transition: all 0.2s ease-in-out;
+    border: 2px solid transparent;
+    cursor: pointer;
+}
+
+.page-thumbnail:hover {
+    border-color: var(--primary-color);
+    background-color: rgba(99, 102, 241, 0.05);
+}
+
+.page-thumbnail.active {
+    border-color: var(--primary-color);
+    background-color: rgba(99, 102, 241, 0.1);
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+}
+
+/* Editor de texto */
+.prose {
+    max-width: none;
+    color: var(--text-primary);
+}
+
+.prose h1 {
+    font-size: 1.875rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    color: #111827;
+}
+
+.prose h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    color: #111827;
+}
+
+.prose h3 {
+    font-size: 1.25rem;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+    color: #111827;
+}
+
+.prose p {
+    margin-bottom: 0.75rem;
+    color: #374151;
+    line-height: 1.625;
+}
+
+.prose ul, .prose ol {
+    margin-bottom: 0.75rem;
+    padding-left: 1.5rem;
+}
+
+.prose li {
+    margin-bottom: 0.25rem;
+    color: #374151;
+}
+
+.prose ul li {
+    list-style-type: disc;
+}
+
+.prose ol li {
+    list-style-type: decimal;
+}
+
+.prose strong {
+    font-weight: 600;
+    color: #111827;
+}
+
+.prose em {
+    font-style: italic;
+}
+
+.prose u {
+    text-decoration: underline;
+}
+
+.prose mark {
+    background-color: #fef3c7;
+    padding: 0.125rem 0.25rem;
+    border-radius: 0.25rem;
+}
+
+/* Dark mode para prose */
+.dark .prose h1,
+.dark .prose h2,
+.dark .prose h3 {
+    color: #f9fafb;
+}
+
+.dark .prose p,
+.dark .prose li {
+    color: #d1d5db;
+}
+
+.dark .prose strong {
+    color: #f9fafb;
+}
+
+.dark .prose mark {
+    background-color: #92400e;
+    color: #fbbf24;
+}
+
+/* Cajas desplegables */
+.collapsible-box {
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    margin-bottom: 1rem;
+    overflow: hidden;
+}
+
+.collapsible-header {
+    background-color: #f9fafb;
+    padding: 0.75rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: background-color 0.2s ease-in-out;
+}
+
+.collapsible-header:hover {
+    background-color: #f3f4f6;
+}
+
+.collapsible-content {
+    padding: 1rem;
+    border-top: 1px solid #e5e7eb;
+    display: none;
+}
+
+.collapsible-box.expanded .collapsible-content {
+    display: block;
+}
+
+.collapsible-box.expanded .collapsible-icon {
+    transform: rotate(180deg);
+}
+
+.collapsible-icon {
+    transition: transform 0.2s ease-in-out;
+}
+
+/* Dark mode para collapsibles */
+.dark .collapsible-box {
+    border-color: #374151;
+}
+
+.dark .collapsible-header {
+    background-color: #374151;
+}
+
+.dark .collapsible-header:hover {
+    background-color: #4b5563;
+}
+
+.dark .collapsible-content {
+    border-color: #374151;
+}
+
+/* Sistema de notificaciones */
+.notification-container {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-width: 20rem;
+    width: auto;
+}
+
+.notification {
+    min-width: 16rem;
+    max-width: 20rem;
+    width: auto;
+    background-color: white;
+    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    border-radius: 0.5rem;
+    pointer-events: auto;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+    transform: translateX(100%);
+    opacity: 0;
+    transition: all 0.3s ease-in-out;
+    padding: 1rem;
+}
+
+.notification.show {
+    transform: translateX(0);
+    opacity: 1;
+}
+
+.notification.success {
+    border-left: 4px solid #10b981;
+}
+
+.notification.error {
+    border-left: 4px solid #ef4444;
+}
+
+.notification.warning {
+    border-left: 4px solid #f59e0b;
+}
+
+.notification.info {
+    border-left: 4px solid #3b82f6;
+}
+
+/* Dark mode para notificaciones */
+.dark .notification {
+    background-color: #1f2937;
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Modo presentación */
+#presentation-view {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+}
+
+#slide-content {
+    font-size: 1.25rem;
+    line-height: 1.8;
+}
+
+#slide-content h1 {
+    font-size: 2.25rem;
+    font-weight: 700;
+    margin-bottom: 1.5rem;
+    color: white;
+}
+
+#slide-content h2 {
+    font-size: 1.875rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: white;
+}
+
+#slide-content h3 {
+    font-size: 1.5rem;
+    font-weight: 500;
+    margin-bottom: 0.75rem;
+    color: white;
+}
+
+#slide-content p {
+    color: #e2e8f0;
+    margin-bottom: 1rem;
+}
+
+#slide-content ul, #slide-content ol {
+    color: #e2e8f0;
+    margin-bottom: 1rem;
+    padding-left: 1.5rem;
+}
+
+#slide-content li {
+    margin-bottom: 0.5rem;
+}
+
+/* Drag and drop */
+.drag-over {
+    border-color: #6366f1 !important;
+    background-color: rgba(99, 102, 241, 0.05);
+    transform: scale(1.02);
+}
+
+.dragging {
+    opacity: 0.5;
+    transform: rotate(2deg);
+}
+
+.drag-handle {
+    cursor: grab;
+}
+
+.drag-handle:active {
+    cursor: grabbing;
+}
+
+.page-thumbnail[draggable="true"] {
+    transition: all 0.2s ease-in-out;
+}
+
+.page-thumbnail[draggable="true"]:hover .drag-handle {
+    color: #6366f1;
+}
+
+/* Lista de páginas con altura limitada */
+#pages-list {
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+/* Mejorar scrollbar en lista de páginas */
+#pages-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+#pages-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+#pages-list::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+}
+
+#pages-list::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+.dark #pages-list::-webkit-scrollbar-thumb {
+    background: #475569;
+}
+
+.dark #pages-list::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
+}
+
+/* Lista de recursos con altura limitada */
+#resource-list {
+    max-height: 50vh;
+    overflow-y: auto;
+}
+
+/* Mejorar scrollbar en lista de recursos */
+#resource-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+#resource-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+#resource-list::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+}
+
+#resource-list::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+.dark #resource-list::-webkit-scrollbar-thumb {
+    background: #475569;
+}
+
+.dark #resource-list::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
+}
+
+/* Asegurar que aside lleguen al borde inferior */
+#study-view {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+#study-view main {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+}
+
+#study-view aside {
+    height: 100%;
+}
+
+/* Ajustar contenedor principal para ocupar toda la altura */
+#study-view .flex.h-full {
+    height: calc(100vh - 73px); /* Restar altura del header */
+}
+
+/* Estados de carga */
+.loading {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+.spinner {
+    display: inline-block;
+    width: 1rem;
+    height: 1rem;
+    border: 2px solid #d1d5db;
+    border-top: 2px solid #6366f1;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Scrollbars personalizados */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+.dark ::-webkit-scrollbar-track {
+    background: #1e293b;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+    background: #475569;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
+}
+
+/* Utilidades */
+.line-clamp-1 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+    line-clamp: 1;
+}
+
+.line-clamp-2 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+}
+
+.line-clamp-3 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+}
+
+/* Animaciones */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideInRight {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0); }
+}
+
+@keyframes slideOutRight {
+    from { transform: translateX(0); }
+    to { transform: translateX(100%); }
+}
+
+.animate-fade-in {
+    animation: fadeIn 0.3s ease-out;
+}
+
+.animate-slide-in-right {
+    animation: slideInRight 0.3s ease-out;
+}
+
+.animate-slide-out-right {
+    animation: slideOutRight 0.3s ease-out;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    #study-view aside {
+        display: none;
+    }
+    
+    #study-view main {
+        width: 100%;
+    }
+    
+    .subject-card, .topic-card {
+        transform: none;
+    }
+    
+    .subject-card:hover, .topic-card:hover {
+        transform: none;
+        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    }
+}
+
+/* Estados de focus mejorados */
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+[contenteditable]:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+/* Mejoras de accesibilidad */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* Estados de error */
+.error-state {
+    border-color: #ef4444;
+    background-color: rgba(239, 68, 68, 0.05);
+}
+
+.success-state {
+    border-color: #10b981;
+    background-color: rgba(16, 185, 129, 0.05);
+}
+
+/* Tooltips */
+.tooltip {
+    position: absolute;
+    z-index: 50;
+    padding: 0.5rem;
+    font-size: 0.75rem;
+    color: white;
+    background-color: #1f2937;
+    border-radius: 0.25rem;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+    pointer-events: none;
+    transform: translateX(-50%);
+}
+
+.tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    border: 4px solid transparent;
+    border-top-color: #1f2937;
+    transform: translateX(-50%);
+}

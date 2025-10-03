@@ -1,0 +1,24 @@
+{
+  "name": "cuaderno-inteligente",
+  "version": "1.0.0",
+  "description": "Sistema inteligente de gestión de estudios con editor rich-text, Pomodoro, quizzes y más",
+  "main": "index.html",
+  "scripts": {
+    "dev": "python server.py",
+    "start": "python server.py"
+  },
+  "keywords": [
+    "study",
+    "education",
+    "productivity",
+    "pomodoro",
+    "quiz",
+    "note-taking"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/TU-USUARIO/cuaderno-inteligente.git"
+  }
+}

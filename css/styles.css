@@ -1,0 +1,403 @@
+/* Estilos base para el Cuaderno Inteligente */
+
+/* Variables CSS */
+:root {
+    --primary-color: #6366f1;
+    --primary-hover: #5855eb;
+    --secondary-color: #8b5cf6;
+    --success-color: #10b981;
+    --error-color: #ef4444;
+    --warning-color: #f59e0b;
+    --text-primary: #1f2937;
+    --text-secondary: #6b7280;
+    --bg-primary: #ffffff;
+    --bg-secondary: #f9fafb;
+    --border-color: #e5e7eb;
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+}
+
+/* Dark mode variables */
+.dark {
+    --text-primary: #f9fafb;
+    --text-secondary: #d1d5db;
+    --bg-primary: #1f2937;
+    --bg-secondary: #111827;
+    --border-color: #374151;
+}
+
+/* Estilos base */
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    line-height: 1.6;
+}
+
+/* Botones del editor */
+.editor-btn {
+    padding: 0.5rem;
+    border-radius: 0.375rem;
+    color: #6b7280;
+    transition: all 0.2s ease-in-out;
+    outline: none;
+}
+
+.editor-btn:hover {
+    background-color: #e5e7eb;
+    color: #374151;
+}
+
+.editor-btn:focus {
+    outline: 2px solid #6366f1;
+    outline-offset: 2px;
+}
+
+.editor-btn.active {
+    background-color: #e0e7ff;
+    color: #6366f1;
+}
+
+.dark .editor-btn {
+    color: #d1d5db;
+}
+
+.dark .editor-btn:hover {
+    background-color: #374151;
+    color: #f9fafb;
+}
+
+.dark .editor-btn.active {
+    background-color: #312e81;
+    color: #a5b4fc;
+}
+
+/* Tarjetas de materias y temas */
+.subject-card, .topic-card {
+    transition: all 0.2s ease-in-out;
+    cursor: pointer;
+}
+
+.subject-card:hover, .topic-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+}
+
+.subject-card:focus, .topic-card:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+/* Miniaturas de páginas */
+.page-thumbnail {
+    transition: all 0.2s ease-in-out;
+    border: 2px solid transparent;
+    cursor: pointer;
+}
+
+.page-thumbnail:hover {
+    border-color: var(--primary-color);
+    background-color: rgba(99, 102, 241, 0.05);
+}
+
+.page-thumbnail.active {
+    border-color: var(--primary-color);
+    background-color: rgba(99, 102, 241, 0.1);
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+}
+
+/* Editor de texto */
+.prose {
+    max-width: none;
+    color: var(--text-primary);
+}
+
+.prose h1 {
+    @apply text-3xl font-bold mb-4 text-gray-900 dark:text-white;
+}
+
+.prose h2 {
+    @apply text-2xl font-semibold mb-3 text-gray-900 dark:text-white;
+}
+
+.prose h3 {
+    @apply text-xl font-medium mb-2 text-gray-900 dark:text-white;
+}
+
+.prose p {
+    @apply mb-3 text-gray-700 dark:text-gray-300 leading-relaxed;
+}
+
+.prose ul, .prose ol {
+    @apply mb-3 pl-6;
+}
+
+.prose li {
+    @apply mb-1 text-gray-700 dark:text-gray-300;
+}
+
+.prose ul li {
+    @apply list-disc;
+}
+
+.prose ol li {
+    @apply list-decimal;
+}
+
+.prose strong {
+    @apply font-semibold text-gray-900 dark:text-white;
+}
+
+.prose em {
+    @apply italic;
+}
+
+.prose u {
+    @apply underline;
+}
+
+.prose mark {
+    @apply bg-yellow-200 dark:bg-yellow-800 px-1 rounded;
+}
+
+/* Cajas desplegables */
+.collapsible-box {
+    @apply border border-gray-200 dark:border-gray-600 rounded-lg mb-4 overflow-hidden;
+}
+
+.collapsible-header {
+    @apply bg-gray-50 dark:bg-gray-700 p-3 cursor-pointer flex items-center justify-between hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors;
+}
+
+.collapsible-content {
+    @apply p-4 border-t border-gray-200 dark:border-gray-600;
+    display: none;
+}
+
+.collapsible-box.expanded .collapsible-content {
+    display: block;
+}
+
+.collapsible-box.expanded .collapsible-icon {
+    transform: rotate(180deg);
+}
+
+.collapsible-icon {
+    transition: transform 0.2s ease-in-out;
+}
+
+/* Sistema de notificaciones */
+.notification-container {
+    @apply fixed top-4 right-4 z-50 space-y-2;
+}
+
+.notification {
+    @apply max-w-sm w-full bg-white dark:bg-gray-800 shadow-lg rounded-lg pointer-events-auto ring-1 ring-black ring-opacity-5 overflow-hidden transform transition-all duration-300 ease-in-out;
+    transform: translateX(100%);
+    opacity: 0;
+}
+
+.notification.show {
+    transform: translateX(0);
+    opacity: 1;
+}
+
+.notification.success {
+    @apply border-l-4 border-green-500;
+}
+
+.notification.error {
+    @apply border-l-4 border-red-500;
+}
+
+.notification.warning {
+    @apply border-l-4 border-yellow-500;
+}
+
+.notification.info {
+    @apply border-l-4 border-blue-500;
+}
+
+/* Modo presentación */
+#presentation-view {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+}
+
+#slide-content {
+    font-size: 1.25rem;
+    line-height: 1.8;
+}
+
+#slide-content h1 {
+    @apply text-4xl font-bold mb-6 text-white;
+}
+
+#slide-content h2 {
+    @apply text-3xl font-semibold mb-4 text-white;
+}
+
+#slide-content h3 {
+    @apply text-2xl font-medium mb-3 text-white;
+}
+
+#slide-content p {
+    @apply text-gray-200 mb-4;
+}
+
+#slide-content ul, #slide-content ol {
+    @apply text-gray-200 mb-4 pl-6;
+}
+
+#slide-content li {
+    @apply mb-2;
+}
+
+/* Drag and drop */
+.drag-over {
+    @apply border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20;
+}
+
+.dragging {
+    @apply opacity-50;
+}
+
+/* Estados de carga */
+.loading {
+    @apply opacity-50 pointer-events-none;
+}
+
+.spinner {
+    @apply inline-block w-4 h-4 border-2 border-gray-300 border-t-indigo-500 rounded-full animate-spin;
+}
+
+/* Scrollbars personalizados */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    @apply bg-gray-100 dark:bg-gray-800;
+}
+
+::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 dark:bg-gray-600 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-400 dark:bg-gray-500;
+}
+
+/* Utilidades */
+.line-clamp-1 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+}
+
+.line-clamp-2 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+}
+
+.line-clamp-3 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+}
+
+/* Animaciones */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideInRight {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0); }
+}
+
+@keyframes slideOutRight {
+    from { transform: translateX(0); }
+    to { transform: translateX(100%); }
+}
+
+.animate-fade-in {
+    animation: fadeIn 0.3s ease-out;
+}
+
+.animate-slide-in-right {
+    animation: slideInRight 0.3s ease-out;
+}
+
+.animate-slide-out-right {
+    animation: slideOutRight 0.3s ease-out;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    #study-view aside {
+        display: none;
+    }
+    
+    #study-view main {
+        width: 100%;
+    }
+    
+    .subject-card, .topic-card {
+        transform: none;
+    }
+    
+    .subject-card:hover, .topic-card:hover {
+        transform: none;
+        box-shadow: var(--shadow-md);
+    }
+}
+
+/* Estados de focus mejorados */
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+[contenteditable]:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+/* Mejoras de accesibilidad */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* Estados de error */
+.error-state {
+    @apply border-red-500 bg-red-50 dark:bg-red-900/20;
+}
+
+.success-state {
+    @apply border-green-500 bg-green-50 dark:bg-green-900/20;
+}
+
+/* Tooltips */
+.tooltip {
+    @apply absolute z-50 px-2 py-1 text-xs text-white bg-gray-900 rounded shadow-lg pointer-events-none;
+    transform: translateX(-50%);
+}
+
+.tooltip::after {
+    content: '';
+    @apply absolute top-full left-1/2 border-4 border-transparent border-t-gray-900;
+    transform: translateX(-50%);
+}

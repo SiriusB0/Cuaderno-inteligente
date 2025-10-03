@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cuaderno Inteligente</title>
+    
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    
+    <!-- Supabase Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <!-- Excalidraw para diagramas libres -->
+    <script src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@excalidraw/excalidraw@0.16.0/dist/excalidraw.production.min.js"></script>
+    
+    <link rel="stylesheet" href="css/styles-new.css">
+    <style>
+        .hidden { display: none !important; }
+        #dashboard-view { display: block; }
+        #subjects-view.hidden { display: none; }
+        #topics-view.hidden { display: none; }
+        #study-view.hidden { display: none; }
+        
+        /* Escala 90% - Todo 10% más pequeño sin espacios vacíos */
+        #study-view {
+            transform: scale(0.9);
+            transform-origin: top left;
+            width: 111.11%; /* 100 / 0.9 = 111.11 para compensar */
+            height: 111.11%;
+        }
+        
+        /* Animación de las barras de progreso */
+        .progress-bar-fill {
+            transition: width 0.5s ease-in-out;
+        }
+        
+        /* Line clamp para descripciones */
+        .line-clamp-2 {
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 2;
+            line-clamp: 2;
+        }
+        
+        /* Estilos para el checkbox personalizado */
+        .custom-checkbox:checked {
+            background-color: #4f46e5; /* indigo-600 */
+            border-color: #4f46e5;
+        }
+        .custom-checkbox:checked::before {
+            content: '✓';
+            color: white;
+            font-weight: bold;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 14px;
+            line-height: 1;
+        }
+        
+        /* Para la animación del acordeón */
+        details > summary {
+            list-style: none;
+        }
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+        details summary .lucide-chevron-down {
+            transition: transform 0.2s;
+        }
+        details[open] summary .lucide-chevron-down {
+            transform: rotate(180deg);
+        }
+        
+        /* Scrollbars personalizados - OSCUROS Y DISCRETOS */
+        #text-editor::-webkit-scrollbar,
+        .table-wrapper::-webkit-scrollbar,
+        .study-table::-webkit-scrollbar,
+        .study-table th::-webkit-scrollbar,
+        .study-table td::-webkit-scrollbar,
+        #left-sidebar::-webkit-scrollbar,
+        #right-sidebar::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        #text-editor::-webkit-scrollbar-track,
+        .table-wrapper::-webkit-scrollbar-track,
+        .study-table::-webkit-scrollbar-track,
+        .study-table th::-webkit-scrollbar-track,
+        .study-table td::-webkit-scrollbar-track,
+        #left-sidebar::-webkit-scrollbar-track,
+        #right-sidebar::-webkit-scrollbar-track {
+            background: rgba(30, 41, 59, 0.3);
+        }
+        
+        #text-editor::-webkit-scrollbar-thumb,
+        .table-wrapper::-webkit-scrollbar-thumb,
+        .study-table::-webkit-scrollbar-thumb,
+        .study-table th::-webkit-scrollbar-thumb,
+        .study-table td::-webkit-scrollbar-thumb,
+        #left-sidebar::-webkit-scrollbar-thumb,
+        #right-sidebar::-webkit-scrollbar-thumb {
+            background: rgba(100, 116, 139, 0.4);
+            border-radius: 4px;
+        }
+        
+        #text-editor::-webkit-scrollbar-thumb:hover,
+        .table-wrapper::-webkit-scrollbar-thumb:hover,
+        .study-table::-webkit-scrollbar-thumb:hover,
+        .study-table th::-webkit-scrollbar-thumb:hover,
+        .study-table td::-webkit-scrollbar-thumb:hover,
+        #left-sidebar::-webkit-scrollbar-thumb:hover,
+        #right-sidebar::-webkit-scrollbar-thumb:hover {
+            background: rgba(100, 116, 139, 0.6);
+        }
+        
+        /* Toolbar SIN scroll horizontal */
+        #editor-toolbar {
+            overflow-x: hidden !important;
+            overflow-y: hidden !important;
+        }
+        
+        #editor-toolbar .flex {
+            flex-wrap: nowrap !important;
+            overflow-x: hidden !important;
+        }
+        
+        /* Layout Grid Fijo - SIDEBARS INMOVIBLES */
+        #study-content-grid {
+            display: grid !important;
+            grid-template-columns: 256px 1fr 320px !important;
+            height: 100%;
+            overflow: hidden;
+        }
+        
+        #study-content-grid.hide-left {
+            grid-template-columns: 0 1fr 320px !important;
+        }
+        
+        #study-content-grid.hide-right {
+            grid-template-columns: 256px 1fr 0 !important;
+        }
+        
+        #study-content-grid.hide-both {
+            grid-template-columns: 0 1fr 0 !important;
+        }
+        
+        /* Ocultar header para modo sin distracciones */
+        #study-view header.header-hidden {
+            display: none !important;
+        }
+        
+        /* Main ocupa todo el espacio cuando header está oculto */
+        #study-view.header-hidden {
+            padding-top: 0 !important;
+        }
+        
+        /* Sidebars con anchos FIJOS */
+        #left-sidebar {
+            width: 256px !important;
+            min-width: 0 !important; /* Permite colapsar a 0 */
+            max-width: 256px !important;
+            flex-shrink: 0 !important;
+            overflow: hidden; /* Oculta contenido cuando columna es 0 */
+        }
+        
+        #right-sidebar {
+            width: 320px !important;
+            min-width: 0 !important; /* Permite colapsar a 0 */
+            max-width: 320px !important;
+            flex-shrink: 0 !important;
+            overflow: hidden; /* Oculta contenido cuando columna es 0 */
+        }
+        
+        /* Los sidebars se ocultan con grid-template-columns: 0, no necesitan display: none */
+        
+        /* Área central - ocupa espacio restante */
+        main {
+            overflow: hidden !important;
+            min-width: 0 !important;
+        }
+        
+        /* Editor con límites estrictos */
+        #text-editor {
+            color: #f8fafc !important;
+            background-color: #1e293b !important;
+            max-width: 100% !important;
+            overflow-x: hidden !important;
+            overflow-y: auto !important;
+            word-wrap: break-word !important;
+            overflow-wrap: break-word !important;
+        }
+        
+        /* TODO el contenido del editor respeta límites */
+        #text-editor * {
+            max-width: 100% !important;
+            overflow-wrap: break-word !important;
+            word-wrap: break-word !important;
+        }
+        
+        #text-editor img {
+            max-width: 100% !important;
+            height: auto !important;
+        }
+        
+        #text-editor pre,
+        #text-editor code {
+            white-space: pre-wrap !important;
+            word-break: break-all !important;
+        }
+        
+        /* Mejorar cajas desplegables */
+        .collapsible-box {
+            background: linear-gradient(135deg, #334155 0%, #475569 100%) !important;
+            border: 1px solid #64748b !important;
+            border-radius: 12px !important;
+            margin: 16px 0 !important;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+            overflow: hidden !important;
+        }
+        
+        .collapsible-header {
+            background: linear-gradient(135deg, #475569 0%, #64748b 100%) !important;
+            color: #f1f5f9 !important;
+            padding: 10px 14px !important;
+            cursor: pointer !important;
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: center !important;
+            border-radius: 8px 8px 0 0 !important;
+            transition: all 0.2s ease !important;
+            font-size: 14px !important;
+        }
+        
+        .collapsible-header:hover {
+            background: linear-gradient(135deg, #64748b 0%, #475569 100%) !important;
+        }
+        
+        .collapsible-content {
+            padding: 14px !important;
+            background: #334155 !important;
+            color: #e2e8f0 !important;
+            border-top: 1px solid #64748b !important;
+            font-size: 14px !important;
+            line-height: 1.6 !important;
+        }
+        
+        .collapsible-box.expanded .collapsible-content {
+            display: block !important;
+        }
+        
+        .collapsible-box:not(.expanded) .collapsible-content {
+            display: none !important;
+        }
+        
+        .collapsible-icon {
+            transition: transform 0.2s ease !important;
+            color: #cbd5e1 !important;
+        }
+        
+        .collapsible-box.expanded .collapsible-icon {
+            transform: rotate(180deg) !important;
+        }
+        
+        /* Mejorar texto del editor */
+        #text-editor h1, #text-editor h2, #text-editor h3, 
+        #text-editor h4, #text-editor h5, #text-editor h6 {
+            color: #f1f5f9 !important;
+            font-weight: bold !important;
+        }
+        
+        #text-editor p, #text-editor li, #text-editor span {
+            color: #e2e8f0 !important;
+        }
+        
+        /* Mejorar toolbar - TAMAÑO FIJO */
+        #editor-toolbar {
+            background: #1e293b !important;
+            border-color: #475569 !important;
+            min-height: 56px !important;
+            max-height: 56px !important;
+            height: 56px !important;
+            flex-shrink: 0 !important;
+            overflow-x: auto !important;
+            overflow-y: hidden !important;
+        }
+        
+        #editor-toolbar .flex {
+            flex-wrap: nowrap !important;
+        }
+        
+        .editor-btn {
+            color: #cbd5e1 !important;
+            padding: 8px !important;
+            border-radius: 6px !important;
+            transition: all 0.2s ease !important;
+            outline: none !important; /* Sin borde azul de focus */
+        }
+        
+        .editor-btn:hover {
+            background: #334155 !important;
+            color: #f1f5f9 !important;
+        }
+        
+        .editor-btn:focus {
+            outline: none !important; /* Sin borde azul al hacer click */
+        }
+        
+        /* Controles de imagen visibles */
+        .image-controls {
+            background: rgba(30, 41, 59, 0.95) !important;
+            backdrop-filter: blur(8px);
+            padding: 8px !important;
+            border-radius: 8px !important;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3) !important;
+        }
+        
+        .image-controls button {
+            background: rgba(51, 65, 85, 0.9) !important;
+            color: #cbd5e1 !important;
+        }
+        
+        .image-controls button:hover {
+            background: rgba(99, 102, 241, 0.9) !important;
+            color: white !important;
+        }
+        
+        /* Tarjetas cuadradas para materias y temas */
+        .aspect-square {
+            aspect-ratio: 1 / 1;
+            position: relative;
+        }
+        
+        /* Quitar borde azul de focus en cajas desplegables */
+        .collapsible-box *:focus,
+        .collapsible-header:focus,
+        .collapsible-content:focus,
+        .collapsible-header span:focus {
+            outline: none !important;
+            border: none !important;
+        }
+        
+        /* Estilos para tablas - SIN SCROLL INNECESARIO */
+        .table-wrapper {
+            position: relative;
+            display: block !important;
+            margin: 1rem 0;
+            padding: 1rem;
+            background: #334155;
+            border-radius: 0.5rem;
+            max-width: 100% !important;
+            width: fit-content !important;
+            overflow: visible !important;
+        }
+        
+        .study-table {
+            border-collapse: collapse;
+            background: transparent;
+            table-layout: fixed !important;
+        }
+        
+        .study-table th,
+        .study-table td {
+            border: 1px solid #475569;
+            padding: 0.5rem !important;
+            text-align: left;
+            color: #f1f5f9;
+            font-size: 14px !important;
+            word-wrap: break-word !important;
+            overflow-wrap: break-word !important;
+            white-space: normal !important;
+            box-sizing: border-box !important;
+            overflow: visible !important;
+            vertical-align: top !important;
+        }
+        
+        .study-table th {
+            background: #1e293b;
+            font-weight: 600;
+            color: #f1f5f9;
+        }
+        
+        .study-table td {
+            background: #334155;
+        }
+        
+        /* Estilos para bloques de código */
+        .code-block {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.875rem;
+            line-height: 1.5;
+            margin: 1rem 0;
+        }
+        
+        /* Estilos para citas */
+        .quote-block {
+            border-left: 4px solid #6366f1;
+            padding-left: 1rem;
+            margin: 1rem 0;
+            font-style: italic;
+            color: #64748b;
+            background: #f8fafc;
+            padding: 1rem;
+            border-radius: 0.25rem;
+        }
+        
+        .dark .quote-block {
+            background: #1e293b;
+            color: #94a3b8;
+        }
+        
+        /* Estilos para checklist */
+        .checklist {
+            list-style: none;
+            padding-left: 0;
+        }
+        
+        .checklist li {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin: 0.5rem 0;
+        }
+        
+        .checklist input[type="checkbox"] {
+            width: 1.25rem;
+            height: 1.25rem;
+            cursor: pointer;
+        }
+        
+        /* === EXCALIDRAW: Cubre todo el content-wrapper === */
+        
+        /* content-wrapper debe ser relative y sin scroll */
+        #content-wrapper {
+            position: relative !important;
+        }
+        
+        /* Contenedor absolute - cubre TODO el content-wrapper */
+        #diagram-container {
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            border: 0 !important;
+            overflow: hidden !important;
+            /* Sin background hardcodeado - Excalidraw maneja el tema */
+            transform: none !important;
+            transform-origin: 0 0 !important;
+            z-index: 1;
+        }
+        
+        /* Root div de Excalidraw - 100% del contenedor */
+        #diagram-container > div {
+            width: 100% !important;
+            height: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+        }
+        
+        /* Excalidraw component - cubre todo */
+        #diagram-container .excalidraw,
+        #diagram-container .excalidraw-container {
+            width: 100% !important;
+            height: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+        }
+        
+        /* Layer UI wrapper - cubre todo */
+        #diagram-container .layer-ui__wrapper {
+            width: 100% !important;
+            height: 100% !important;
+        }
+        
+        /* Canvas wrapper - cubre todo el espacio */
+        #diagram-container .excalidraw__canvas-wrapper,
+        #diagram-container canvas {
+            width: 100% !important;
+            height: 100% !important;
+        }
+        
+        /* Animación para notificaciones */
+        @keyframes slideDown {
+            from {
+                transform: translateY(-100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 0.95;
+            }
+        }
+    </style>
+</head>
+<body class="h-full bg-slate-900 text-slate-200" style="font-family: 'Inter', sans-serif;">
+    <div id="app" class="h-screen w-full">
+        <!-- VISTA DE DASHBOARD -->
+        <div id="dashboard-view" class="p-6 md:p-8 lg:p-10 overflow-y-auto">
+            <!-- El contenido del dashboard se renderizará aquí -->
+        </div>
+        
+        <!-- VISTA DE TOPICS (Contenido de materia) -->
+        <div id="topics-view" class="p-6 md:p-8 lg:p-10 overflow-y-auto hidden">
+            <!-- El contenido de topics se renderizará aquí -->
+        </div>
+        
+        <!-- VISTA DE MATERIAS -->
+        <div id="subjects-view" class="p-8 md:p-12 hidden">
+            <header class="mb-10">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center gap-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-indigo-500">
+                            <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"></path>
+                        </svg>
+                        <h1 class="text-4xl font-extrabold text-gray-900 dark:text-white">Mis Cuadernos</h1>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button id="export-data-btn" class="px-3 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors duration-200" title="Exportar datos">
+                            <i data-lucide="download" class="w-4 h-4"></i>
+                        </button>
+                        <button id="reset-data-btn" class="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors duration-200" title="Resetear datos">
+                            <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                        </button>
+                        <button id="add-subject-btn" class="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors duration-200">
+                            <i data-lucide="plus" class="w-4 h-4 inline mr-2"></i>Nueva Materia
+                        </button>
+                    </div>
+                </div>
+                <p class="text-gray-500 dark:text-gray-400">Selecciona una materia para empezar a estudiar.</p>
+            </header>
+            <div id="subjects-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                <!-- Las tarjetas de materia se renderizarán aquí -->
+            </div>
+        </div>
+
+        <!-- VISTA DE ESTUDIO -->
+        <div id="study-view" class="hidden h-full w-full flex-col">
+            <!-- Header mejorado -->
+            <header class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 bg-white dark:bg-gray-800 gap-6">
+                <!-- Sección izquierda: Navegación y título -->
+                <div class="flex items-center gap-4 min-w-0 flex-shrink">
+                    <button id="back-to-topics" class="p-2.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors flex-shrink-0">
+                        <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                    </button>
+                    <div class="min-w-0">
+                        <h2 id="study-view-title" class="text-xl font-bold truncate"></h2>
+                        <p id="study-view-breadcrumb" class="text-sm text-gray-500 truncate"></p>
+                    </div>
+                </div>
+
+                <!-- Sección central: Widget de eventos -->
+                <div id="events-widget" class="flex-shrink-0"></div>
+                
+                <!-- Sección derecha: Carousel de botones -->
+                <div class="flex items-center gap-3 flex-shrink-0">
+                    <!-- Botón navegar carousel -->
+                    <button id="carousel-prev-btn" class="p-2.5 bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition-colors" title="Ver más opciones">
+                        <i data-lucide="chevron-left" class="w-5 h-5"></i>
+                    </button>
+                    
+                    <!-- Contenedor carousel -->
+                    <div class="overflow-hidden" style="width: 144px;">
+                        <div id="header-carousel" class="flex items-center gap-2 transition-transform duration-300">
+                            <!-- Botón Pomodoro (ocupa el doble de espacio) -->
+                            <button id="start-pomodoro-btn" class="flex-shrink-0 px-3 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-lg transition-all flex items-center gap-2 shadow-sm" style="width: 140px;" title="Técnica Pomodoro">
+                                <i data-lucide="timer" class="w-4 h-4"></i>
+                                <span class="text-sm font-semibold">Pomodoro</span>
+                            </button>
+                            
+                            <!-- Grupo 1: Toggle Paneles -->
+                            <div class="flex items-center gap-2" style="width: 140px;">
+                                <button id="toggle-sidebars-btn" class="flex-shrink-0 p-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors" style="width: 36px; height: 36px;" title="Alternar paneles">
+                                    <i data-lucide="layout-panel-left" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                            
+                            <!-- Grupo 2: Exportar PDF (solo 1 botón, centrado) -->
+                            <div class="flex items-center justify-center gap-2" style="width: 140px;">
+                                <button id="export-pdf-btn" class="flex-shrink-0 p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors" style="width: 36px; height: 36px;" title="Exportar PDF">
+                                    <i data-lucide="download" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Contenido principal con CSS Grid -->
+            <div id="study-content-grid" class="flex-1 overflow-hidden" style="display: grid; grid-template-columns: 256px 1fr 320px;">
+                <!-- Panel de páginas -->
+                <aside id="left-sidebar" class="bg-gray-50 dark:bg-gray-800 p-4 flex flex-col border-r border-gray-200 dark:border-gray-700 overflow-hidden">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-sm font-semibold">Páginas</h3>
+                        <span id="page-counter" class="text-xs text-gray-500">0/0</span>
+                    </div>
+                    <div id="pages-list" class="flex-1 space-y-2 overflow-y-auto mb-4">
+                        <!-- Lista de páginas -->
+                    </div>
+                    <!-- Botón movido al final del aside -->
+                    <div class="mt-auto pt-4">
+                        <button id="add-page-btn" class="w-full flex items-center justify-center gap-2 text-sm py-2 rounded-md bg-indigo-500 text-white hover:bg-indigo-600 transition-colors">
+                            <i data-lucide="plus" class="w-4 h-4"></i> Nueva Página
+                        </button>
+                    </div>
+                </aside>
+
+                <!-- Editor principal -->
+                <main class="flex flex-col bg-white dark:bg-gray-800 overflow-hidden">
+                    <!-- Toolbar del editor -->
+                    <div id="editor-toolbar" class="p-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between relative z-0">
+                        <div class="flex items-center gap-1 flex-wrap">
+                            <!-- Formato de texto -->
+                            <button class="editor-btn" data-command="bold" title="Negrita (Ctrl+B)">
+                                <i data-lucide="bold" class="w-4 h-4"></i>
+                            </button>
+                            <button class="editor-btn" data-command="italic" title="Cursiva (Ctrl+I)">
+                                <i data-lucide="italic" class="w-4 h-4"></i>
+                            </button>
+                            <button class="editor-btn" data-command="underline" title="Subrayado (Ctrl+U)">
+                                <i data-lucide="underline" class="w-4 h-4"></i>
+                            </button>
+                            <button class="editor-btn" data-command="strikeThrough" title="Tachado">
+                                <i data-lucide="strikethrough" class="w-4 h-4"></i>
+                            </button>
+                            
+                            <div class="w-px h-6 bg-gray-200 dark:bg-gray-600 mx-2"></div>
+                            
+                            <!-- Tamaño de fuente -->
+                            <select class="editor-btn text-xs px-2 py-1 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded" id="font-size-select" title="Tamaño de fuente">
+                                <option value="8">8</option>
+                                <option value="9">9</option>
+                                <option value="10">10</option>
+                                <option value="11">11</option>
+                                <option value="12">12</option>
+                                <option value="14">14</option>
+                                <option value="16" selected>16</option>
+                                <option value="18">18</option>
+                                <option value="20">20</option>
+                                <option value="24">24</option>
+                                <option value="28">28</option>
+                                <option value="32">32</option>
+                                <option value="36">36</option>
+                                <option value="48">48</option>
+                                <option value="72">72</option>
+                            </select>
+                            
+                            <div class="w-px h-6 bg-gray-200 dark:bg-gray-600 mx-2"></div>
+                            
+                            <!-- Encabezados -->
+                            <button class="editor-btn" id="heading1-btn" title="Encabezado 1">
+                                <i data-lucide="heading-1" class="w-4 h-4"></i>
+                            </button>
+                            <button class="editor-btn" id="heading2-btn" title="Encabezado 2">
+                                <i data-lucide="heading-2" class="w-4 h-4"></i>
+                            </button>
+                            <button class="editor-btn" id="heading3-btn" title="Encabezado 3">
+                                <i data-lucide="heading-3" class="w-4 h-4"></i>
+                            </button>
+                            
+                            <div class="w-px h-6 bg-gray-200 dark:bg-gray-600 mx-2"></div>
+                            
+                            <!-- Listas -->
+                            <button class="editor-btn" data-command="insertUnorderedList" title="Lista con viñetas">
+                                <i data-lucide="list" class="w-4 h-4"></i>
+                            </button>
+                            <button class="editor-btn" data-command="insertOrderedList" title="Lista numerada">
+                                <i data-lucide="list-ordered" class="w-4 h-4"></i>
+                            </button>
+                            <button class="editor-btn" id="checklist-btn" title="Lista de tareas">
+                                <i data-lucide="list-checks" class="w-4 h-4"></i>
+                            </button>
+                            
+                            <div class="w-px h-6 bg-gray-200 dark:bg-gray-600 mx-2"></div>
+                            
+                            <!-- Alineación -->
+                            <button class="editor-btn" data-command="justifyLeft" title="Alinear izquierda">
+                                <i data-lucide="align-left" class="w-4 h-4"></i>
+                            </button>
+                            <button class="editor-btn" data-command="justifyCenter" title="Alinear centro">
+                                <i data-lucide="align-center" class="w-4 h-4"></i>
+                            </button>
+                             <button class="editor-btn" data-command="justifyRight" title="Alinear derecha">
+                                <i data-lucide="align-right" class="w-4 h-4"></i>
+                            </button>
+                            
+                            <div class="w-px h-6 bg-gray-200 dark:bg-gray-600 mx-2"></div>
+                            
+                            <!-- Colores -->
+                            <div class="relative">
+                                <button class="editor-btn" id="highlight-btn" title="Resaltador">
+                                    <i data-lucide="highlighter" class="w-4 h-4"></i>
+                                </button>
+                                <div id="highlight-menu" class="hidden absolute top-full left-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-2 z-50">
+                                    <div class="flex gap-1">
+                                        <button class="highlight-color w-8 h-8 rounded border-2 border-gray-300 hover:border-gray-500" style="background: #fef08a;" data-color="#fef08a" title="Amarillo"></button>
+                                        <button class="highlight-color w-8 h-8 rounded border-2 border-gray-300 hover:border-gray-500" style="background: #bbf7d0;" data-color="#bbf7d0" title="Verde"></button>
+                                        <button class="highlight-color w-8 h-8 rounded border-2 border-gray-300 hover:border-gray-500" style="background: #fecaca;" data-color="#fecaca" title="Rojo"></button>
+                                        <button class="highlight-color w-8 h-8 rounded border-2 border-gray-300 hover:border-gray-500" style="background: #bfdbfe;" data-color="#bfdbfe" title="Azul"></button>
+                                        <button class="highlight-color w-8 h-8 rounded border-2 border-gray-300 hover:border-gray-500" style="background: #e9d5ff;" data-color="#e9d5ff" title="Morado"></button>
+                                    </div>
+                                </div>
+                            </div>
+                            <button class="editor-btn" id="text-color-btn" title="Color de texto">
+                                <i data-lucide="palette" class="w-4 h-4"></i>
+                            </button>
+                            
+                            <div class="w-px h-6 bg-gray-200 dark:bg-gray-600 mx-2"></div>
+                            
+                            <!-- Elementos especiales -->
+                            <button class="editor-btn" id="add-textbox-btn" title="Recuadro de texto">
+                                <i data-lucide="square-dashed" class="w-4 h-4"></i>
+                            </button>
+                            <button class="editor-btn" id="add-image-btn" title="Insertar imagen">
+                                <i data-lucide="image" class="w-4 h-4"></i>
+                            </button>
+                            <button class="editor-btn" id="add-video-btn" title="Insertar video YouTube">
+                                <i data-lucide="youtube" class="w-4 h-4"></i>
+                            </button>
+                            <button class="editor-btn" id="add-table-btn" title="Insertar tabla">
+                                <i data-lucide="table" class="w-4 h-4"></i>
+                            </button>
+                            <button class="editor-btn" id="add-code-btn" title="Bloque de código">
+                                <i data-lucide="code" class="w-4 h-4"></i>
+                            </button>
+                            <button class="editor-btn" id="add-quote-btn" title="Cita">
+                                <i data-lucide="quote" class="w-4 h-4"></i>
+                            </button>
+                            <button id="add-collapsible-btn" class="editor-btn" title="Caja desplegable">
+                                <i data-lucide="chevron-down" class="w-4 h-4"></i>
+                            </button>
+                            
+                            <div class="w-px h-6 bg-gray-200 dark:bg-gray-600 mx-2"></div>
+                            
+                            <!-- Utilidades -->
+                            <button class="editor-btn" data-command="removeFormat" title="Limpiar formato">
+                                <i data-lucide="eraser" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button id="toggle-header-btn" class="editor-btn focus:outline-none" title="Modo sin distracciones (ocultar header)">
+                                <i data-lucide="eye-off" class="w-4 h-4"></i>
+                            </button>
+                            <span id="save-status" class="text-sm text-gray-500">Guardado</span>
+                            <button id="save-btn" class="editor-btn" title="Guardar (Ctrl+S)">
+                                <i data-lucide="save" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Área de contenido -->
+                    <div id="content-wrapper" class="flex-1 overflow-y-auto overflow-x-hidden relative">
+                        <div id="text-editor" class="h-full p-6 prose max-w-none focus:outline-none" contenteditable="true" style="min-height: 100%; max-width: 100%; overflow-wrap: break-word;">
+                            <!-- Contenido del editor de texto -->
+                        </div>
+                        <div id="diagram-container" class="h-full hidden">
+                            <!-- Contenedor de diagramas Excalidraw -->
+                        </div>
+                    </div>
+                </main>
+
+                <!-- Panel de recursos -->
+                <aside id="right-sidebar" class="bg-gray-50 dark:bg-gray-800 p-4 border-l border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden">
+                    <h3 class="text-sm font-semibold mb-4">Recursos</h3>
+                    <div id="resource-list" class="flex-1 space-y-2 overflow-y-auto mb-4">
+                        <!-- Lista de recursos -->
+                    </div>
+                    <div id="drop-zone" class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center cursor-pointer hover:border-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors">
+                        <i data-lucide="upload-cloud" class="w-8 h-8 mx-auto mb-2 text-gray-400"></i>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Arrastra archivos aquí</p>
+                        <p class="text-xs text-gray-400">PDF, imágenes, texto, audio</p>
+                        <input type="file" id="file-upload" class="hidden" multiple accept=".pdf,.txt,.jpg,.jpeg,.png,.gif,.webp,.svg,.mp3,.wav,.ogg,.webm,.m4a">
+                    </div>
+                </aside>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts modulares -->
+    <script type="module">
+        // Inicializar aplicación cuando el DOM esté listo
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                console.log('Iniciando aplicación...');
+                
+                // Importar módulos principales
+                const { default: DataManager } = await import('./js/core/DataManager.js');
+                const { default: Router } = await import('./js/core/Router.js');
+                const { default: NotificationManager } = await import('./js/components/NotificationManager.js');
+                const { default: PomodoroManager } = await import('./js/components/PomodoroManager.js');
+                const { default: QuizManager } = await import('./js/components/QuizManager.js');
+                const { default: QuizCreatorModal } = await import('./js/views/QuizCreatorModal.js');
+                const { default: QuizStudyModal } = await import('./js/views/QuizStudyModal.js');
+                const { default: DashboardView } = await import('./js/views/DashboardView.js');
+                const { default: SubjectsView } = await import('./js/views/SubjectsView.js');
+                const { default: TopicsView } = await import('./js/views/TopicsView.js');
+                const { default: StudyView } = await import('./js/views/StudyView.js');
+                
+                console.log('Módulos importados correctamente');
+                
+                // Crear instancia de la aplicación
+                class CuadernoInteligente {
+                    constructor() {
+                        this.dataManager = new DataManager();
+                        this.router = new Router();
+                        this.notifications = new NotificationManager();
+                        this.pomodoroManager = new PomodoroManager(this.dataManager, this.notifications);
+                        this.quizManager = new QuizManager(this.dataManager, this.notifications);
+                        this.views = {};
+                        
+                        // Hacer disponibles globalmente para los modales
+                        window.QuizCreatorModal = QuizCreatorModal;
+                        window.QuizStudyModal = QuizStudyModal;
+                        
+                        this.initializeViews();
+                        this.setupEventListeners();
+                        
+                        // Inicializar router (restaura estado o va a dashboard)
+                        this.router.initialize();
+                        
+                        // Inicializar iconos
+                        if (window.lucide) {
+                            window.lucide.createIcons();
+                        }
+                        
+                        // Notificación de bienvenida
+                        setTimeout(() => {
+                            this.notifications.success('Aplicación lista');
+                        }, 1000);
+                    }
+                    
+                    initializeViews() {
+                        this.views.dashboard = new DashboardView(this.dataManager, this.router, this.notifications, this.pomodoroManager, this.quizManager);
+                        this.views.subjects = new SubjectsView(this.dataManager, this.router, this.notifications);
+                        this.views.topics = new TopicsView(this.dataManager, this.router, this.notifications, this.quizManager);
+                        this.views.study = new StudyView(this.dataManager, this.router, this.notifications);
+                    }
+                    
+                    setupEventListeners() {
+                        // Navegación entre vistas
+                        this.router.on('navigationChanged', (event) => {
+                            const { to, data } = event;
+                            
+                            switch (to) {
+                                case 'dashboard':
+                                    this.views.dashboard.render();
+                                    break;
+                                case 'subjects':
+                                    this.views.subjects.render();
+                                    break;
+                                case 'topics':
+                                    this.views.topics.render(data);
+                                    break;
+                                case 'study':
+                                    this.views.study.render(data);
+                                    break;
+                            }
+                            
+                            // Actualizar iconos después de renderizar
+                            if (window.lucide) {
+                                window.lucide.createIcons();
+                            }
+                        });
+                        
+                        // Auto-guardado antes de cerrar
+                        window.addEventListener('beforeunload', () => {
+                            this.dataManager.save();
+                        });
+                        
+                        // Atajos de teclado globales
+                        document.addEventListener('keydown', (e) => {
+                            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                                e.preventDefault();
+                                this.dataManager.save();
+                                this.notifications.success('Datos guardados');
+                            }
+                        });
+                    }
+                }
+                
+                // Crear instancia de la aplicación
+                const app = new CuadernoInteligente();
+                
+                // Hacer disponible globalmente para pruebas
+                window.app = app;
+                
+                console.log('Aplicación inicializada correctamente');
+                console.log('💡 Tip: Usa window.app para acceder a la aplicación desde la consola');
+            } catch (error) {
+                console.error('Error al inicializar la aplicación:', error);
+                
+                // Mostrar error en la página
+                const app = document.getElementById('app');
+                if (app) {
+                    app.innerHTML = `
+                        <div class="h-full flex items-center justify-center">
+                            <div class="text-center p-8">
+{{ ... }}
+                                    <svg class="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.464 0L4.35 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                                    </svg>
+                                </div>
+                                <h2 class="text-xl font-bold text-gray-900 mb-2">Error al cargar la aplicación</h2>
+                                <p class="text-gray-600 mb-4">Ha ocurrido un error al inicializar el Cuaderno Inteligente.</p>
+                                <p class="text-sm text-gray-500 mb-4">Error: ${error.message}</p>
+                                <button onclick="location.reload()" class="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600">
+                                    Recargar página
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+        });
+    </script>
+</body>
+</html>
