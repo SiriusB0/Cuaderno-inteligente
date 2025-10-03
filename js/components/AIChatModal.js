@@ -10,6 +10,7 @@ class AIChatModal {
         this.notifications = notifications;
         
         this.isVisible = false;
+        this.isExpanded = false; // Estado de vista expandida
         this.currentSubject = null;
         this.currentTopic = null;
         this.indexCache = null; // Cache del índice JSON cargado
@@ -79,30 +80,54 @@ class AIChatModal {
      */
     createModal() {
         const modalHTML = `
-        <div id="ai-chat-modal" class="fixed top-0 right-0 bottom-0 z-50 hidden flex-col w-[480px] bg-slate-800 shadow-2xl border-l border-slate-700">
-                <!-- Header -->
-                <div class="flex items-center justify-between p-4 border-b border-slate-700 bg-slate-900">
-                    <div class="flex items-center gap-3">
-                        <i data-lucide="graduation-cap" class="w-6 h-6 text-slate-400"></i>
-                        <h2 class="text-xl font-semibold text-slate-200">Profesor</h2>
+        <div id="ai-chat-modal" class="fixed inset-0 z-50 hidden flex-col bg-slate-800 shadow-2xl" style="width: 90vw; margin: 0 auto;">
+                <!-- Header compacto -->
+                <div class="flex items-center justify-between px-4 py-2 border-b border-slate-700 bg-slate-900">
+                    <div class="flex items-center gap-4">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="graduation-cap" class="w-5 h-5 text-slate-400"></i>
+                            <h2 class="text-base font-semibold text-slate-200">Profesor</h2>
+                        </div>
+                        
+                        <!-- Contexto -->
+                        <div class="flex items-center gap-2 text-xs text-slate-400">
+                            <i data-lucide="book-open" class="w-3 h-3"></i>
+                            <span id="ai-context-info">Cargando...</span>
+                        </div>
+                        
+                        <!-- Opciones de búsqueda -->
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs text-slate-500">|</span>
+                            <label class="flex items-center gap-1 cursor-pointer">
+                                <input type="checkbox" id="ai-include-notes-toggle" class="w-3 h-3 rounded border-slate-600 bg-slate-800 text-purple-600" checked>
+                                <span class="text-xs text-slate-400">Apuntes</span>
+                            </label>
+                            <label class="flex items-center gap-1 cursor-pointer">
+                                <input type="checkbox" id="ai-include-resources-toggle" class="w-3 h-3 rounded border-slate-600 bg-slate-800 text-purple-600" checked>
+                                <span class="text-xs text-slate-400">Recursos</span>
+                            </label>
+                            <label class="flex items-center gap-1 cursor-pointer">
+                                <input type="checkbox" id="ai-include-web-toggle" class="w-3 h-3 rounded border-slate-600 bg-slate-800 text-purple-600">
+                                <span class="text-xs text-slate-400">Web</span>
+                            </label>
+                        </div>
+                        
+                        <!-- Estado -->
+                        <div id="ai-index-status" class="flex items-center gap-1.5">
+                            <span class="w-1.5 h-1.5 rounded-full bg-green-500" id="ai-status-icon"></span>
+                            <span class="text-xs text-slate-400" id="ai-status-text">Listo</span>
+                        </div>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <button id="ai-clear-chat-btn" class="p-2 hover:bg-slate-700 rounded-lg transition-colors" title="Borrar conversación">
-                            <i data-lucide="trash-2" class="w-5 h-5 text-slate-400"></i>
+                    
+                    <div class="flex items-center gap-1">
+                        <button id="ai-clear-chat-btn" class="p-1.5 hover:bg-slate-700 rounded transition-colors" title="Borrar">
+                            <i data-lucide="trash-2" class="w-4 h-4 text-slate-400"></i>
                         </button>
-                        <button id="ai-close-btn" class="p-2 hover:bg-slate-700 rounded-lg transition-colors">
-                            <i data-lucide="x" class="w-5 h-5 text-slate-400"></i>
+                        <button id="ai-close-btn" class="p-1.5 hover:bg-slate-700 rounded transition-colors">
+                            <i data-lucide="x" class="w-4 h-4 text-slate-400"></i>
                         </button>
                     </div>
                 </div>
-            
-            <!-- Contexto actual -->
-            <div class="px-4 py-2 bg-slate-900/50 border-b border-slate-700">
-                <div class="flex items-center gap-2 text-xs text-slate-400">
-                    <i data-lucide="book-open" class="w-3 h-3"></i>
-                    <span id="ai-context-info">Cargando contexto...</span>
-                </div>
-            </div>
             
             <!-- Mensajes -->
             <div id="ai-chat-messages" class="flex-1 overflow-y-auto p-4 space-y-3">
@@ -113,34 +138,22 @@ class AIChatModal {
             </div>
             
             <!-- Input area -->
-            <div class="p-4 border-t border-slate-700 bg-slate-900/50">
-                <!-- Toggle incluir apuntes -->
-                <div class="flex items-center gap-2 mb-3">
-                    <input type="checkbox" id="ai-include-notes-toggle" class="w-4 h-4 rounded border-slate-600 bg-slate-800 text-purple-600 focus:ring-purple-500" checked>
-                    <label for="ai-include-notes-toggle" class="text-xs text-slate-400 cursor-pointer">Incluir apuntes del editor</label>
-                </div>
-                
-                <!-- Input y botón -->
+            <div class="p-3 border-t border-slate-700 bg-slate-900/50">
                 <div class="flex gap-2">
                     <input 
                         type="text" 
                         id="ai-chat-input" 
                         placeholder="Pregunta sobre este tema..." 
-                        class="flex-1 px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 placeholder-slate-500"
+                        class="flex-1 px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-slate-500 placeholder-slate-500"
                     >
                     <button 
                         id="ai-chat-send-btn" 
-                        class="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-lg transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         <i data-lucide="send" class="w-4 h-4"></i>
                     </button>
                 </div>
                 
-                <!-- Estado de carga del índice -->
-                <div id="ai-index-status" class="mt-2 flex items-center gap-2">
-                    <span class="hidden" id="ai-status-icon"></span>
-                    <span class="text-xs text-slate-500" id="ai-status-text"></span>
-                </div>
             </div>
         </div>
         `;
@@ -162,8 +175,8 @@ class AIChatModal {
      * Adjunta event listeners al modal
      */
     attachEventListeners() {
-        const closeBtn = this.modal.querySelector('#ai-chat-close-btn');
-        const clearBtn = this.modal.querySelector('#ai-chat-clear-btn');
+        const closeBtn = this.modal.querySelector('#ai-close-btn');
+        const clearBtn = this.modal.querySelector('#ai-clear-chat-btn');
         const sendBtn = this.modal.querySelector('#ai-chat-send-btn');
         const input = this.modal.querySelector('#ai-chat-input');
         
@@ -327,10 +340,13 @@ class AIChatModal {
      * Obtiene respuesta de la IA
      */
     async getAIResponse(query) {
-        // 1. Obtener apuntes del editor si está activado
+        // 1. Verificar qué fuentes están habilitadas
         const includeNotes = this.modal.querySelector('#ai-include-notes-toggle')?.checked;
-        let editorContext = '';
+        const includeResources = this.modal.querySelector('#ai-include-resources-toggle')?.checked;
+        const includeWeb = this.modal.querySelector('#ai-include-web-toggle')?.checked;
         
+        // 2. Obtener apuntes del editor si está activado
+        let editorContext = '';
         if (includeNotes) {
             const editor = document.getElementById('text-editor');
             if (editor) {
@@ -342,13 +358,23 @@ class AIChatModal {
             }
         }
         
-        // 2. Si hay índice, buscar chunks relevantes
+        // 3. Si hay índice y recursos está habilitado, buscar chunks relevantes
         let topChunks = [];
-        if (this.indexCache && this.indexCache.length > 0) {
+        if (includeResources && this.indexCache && this.indexCache.length > 0) {
             topChunks = await this.findRelevantChunks(query, 5);
         }
         
-        // 3. Llamar a Edge Function (o fallback local si no está configurada)
+        // 4. Validar que al menos una fuente esté habilitada
+        if (!includeNotes && !includeResources && !includeWeb) {
+            throw new Error('Debes seleccionar al menos una fuente de búsqueda');
+        }
+        
+        // 5. Si no hay recursos ni apuntes pero web está deshabilitada, informar
+        if (!includeWeb && topChunks.length === 0 && !editorContext) {
+            throw new Error('No hay información disponible en las fuentes seleccionadas. Activa "Web externa" para obtener respuestas generales.');
+        }
+        
+        // 6. Llamar a Edge Function (o fallback local si no está configurada)
         if (this.SUPABASE_URL.includes('your-project')) {
             // Modo demo sin backend - generar respuesta simulada
             return this.getDemoResponse(query, topChunks, editorContext);
@@ -370,7 +396,8 @@ class AIChatModal {
                     source: c.sourceName,
                     url: c.sourceUrl
                 })),
-                extraContext: editorContext
+                extraContext: editorContext,
+                allowWeb: includeWeb
             })
         });
         
@@ -513,7 +540,7 @@ class AIChatModal {
             if (msg.role === 'user') {
                 return `
                     <div class="flex justify-end">
-                        <div class="bg-purple-600 text-white px-4 py-2 rounded-lg max-w-[85%] text-sm">
+                        <div class="bg-slate-700 text-slate-100 px-4 py-2.5 rounded-2xl max-w-[85%] text-sm">
                             ${this.escapeHtml(msg.content)}
                         </div>
                     </div>
@@ -543,7 +570,7 @@ class AIChatModal {
                 
                 return `
                     <div class="flex justify-start">
-                        <div class="bg-slate-700 text-slate-100 px-4 py-2 rounded-lg max-w-[85%] text-sm">
+                        <div class="text-slate-100 px-1 py-2 max-w-[85%] text-sm">
                             ${this.formatMarkdown(msg.content)}
                             ${sourcesHtml}
                         </div>
@@ -557,17 +584,137 @@ class AIChatModal {
         
         // Actualizar iconos
         if (window.lucide) window.lucide.createIcons();
+        
+        // Event listeners para botones de copiar código
+        container.querySelectorAll('.copy-code-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const code = btn.dataset.code;
+                const originalText = btn.textContent;
+                
+                navigator.clipboard.writeText(code).then(() => {
+                    btn.textContent = '✓ Copiado';
+                    btn.style.color = '#10b981'; // Verde
+                    
+                    setTimeout(() => {
+                        btn.textContent = originalText;
+                        btn.style.color = ''; // Restaurar color original
+                    }, 2000);
+                }).catch(err => {
+                    console.error('Error al copiar:', err);
+                    btn.textContent = '✗ Error';
+                    setTimeout(() => {
+                        btn.textContent = originalText;
+                    }, 2000);
+                });
+            });
+        });
     }
     
     /**
      * Formatea texto con markdown básico
      */
     formatMarkdown(text) {
-        return this.escapeHtml(text)
-            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-            .replace(/\*(.*?)\*/g, '<em>$1</em>')
-            .replace(/\n/g, '<br>');
+        // Procesar bloques de código primero
+        let parts = [];
+        let lastIndex = 0;
+        const codeRegex = /```(\w+)?\n([\s\S]*?)```/g;
+        let match;
+        
+        while ((match = codeRegex.exec(text)) !== null) {
+            // Agregar texto antes del código
+            if (match.index > lastIndex) {
+                const textBefore = text.substring(lastIndex, match.index);
+                parts.push({ type: 'text', content: textBefore });
+            }
+            
+            // Agregar bloque de código
+            const language = match[1] || 'plaintext';
+            const code = match[2].trim();
+            
+            parts.push({ 
+                type: 'code',
+                language: language,
+                code: code
+            });
+            
+            lastIndex = match.index + match[0].length;
+        }
+        
+        // Agregar texto restante
+        if (lastIndex < text.length) {
+            parts.push({ type: 'text', content: text.substring(lastIndex) });
+        }
+        
+        // Procesar cada parte
+        let html = '';
+        parts.forEach((part, index) => {
+            if (part.type === 'code') {
+                // Generar bloque de código con highlight.js y botón copiar
+                const codeId = 'code-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+                html += `<div class="my-3 relative rounded-lg" style="background-color: #1e1e1e;">
+                    <div class="flex items-center justify-between px-3 pt-2 pb-1">
+                        <span class="inline-block px-2.5 py-0.5 text-xs font-semibold rounded-full" style="background-color: #0078d4; color: #ffffff;">${part.language}</span>
+                        <button class="copy-code-btn px-2.5 py-0.5 text-xs text-slate-400 hover:text-white transition-colors rounded" data-code="${this.escapeHtml(part.code)}" title="Copiar código">
+                            Copiar
+                        </button>
+                    </div>
+                    <pre class="px-4 pb-3" style="margin: 0; overflow-x: auto;"><code id="${codeId}" class="language-${part.language} text-sm" style="line-height: 1.5;">${this.escapeHtml(part.code)}</code></pre>
+                </div>`;
+                
+                // Aplicar highlight.js de forma asíncrona
+                setTimeout(() => {
+                    const block = document.getElementById(codeId);
+                    if (block && window.hljs) {
+                        window.hljs.highlightElement(block);
+                    }
+                }, 10);
+            } else {
+                // Texto normal: escapar y aplicar markdown
+                let textHtml = this.escapeHtml(part.content);
+                
+                // Limpiar saltos de línea al inicio y final
+                textHtml = textHtml.trim();
+                
+                // Si está vacío, no agregar nada
+                if (!textHtml) return;
+                
+                // Separadores horizontales (---) - El AI los genera
+                textHtml = textHtml.replace(/^---$/gm, '<hr class="my-6 border-0 border-t border-slate-600" style="opacity: 0.5;">');
+                
+                // Títulos (números como "1. Python", "2. Java")
+                textHtml = textHtml.replace(/^(\d+)\.\s+(.+)$/gm, '<h3 class="text-base font-bold text-purple-300 mt-4 mb-2">$1. $2</h3>');
+                
+                // Títulos markdown
+                textHtml = textHtml.replace(/^### (.+)$/gm, '<h3 class="text-base font-bold text-purple-300 mt-4 mb-2">$1</h3>');
+                textHtml = textHtml.replace(/^## (.+)$/gm, '<h2 class="text-lg font-bold text-purple-300 mt-4 mb-2">$1</h2>');
+                textHtml = textHtml.replace(/^# (.+)$/gm, '<h1 class="text-xl font-bold text-purple-300 mt-4 mb-2">$1</h1>');
+                
+                // Negrita y cursiva
+                textHtml = textHtml.replace(/\*\*(.*?)\*\*/g, '<strong class="text-white font-semibold">$1</strong>');
+                textHtml = textHtml.replace(/\*(.*?)\*/g, '<em class="text-slate-200">$1</em>');
+                
+                // Código inline (fondo gris tenue como ChatGPT)
+                textHtml = textHtml.replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 rounded text-sm font-mono" style="background-color: rgba(255, 255, 255, 0.1); color: #e5e7eb;">$1</code>');
+                
+                // Listas
+                textHtml = textHtml.replace(/^- (.+)$/gm, '<li class="ml-4 text-slate-200 my-1">$1</li>');
+                
+                // Convertir saltos de línea: dobles -> separación de párrafo, simples -> espacio
+                textHtml = textHtml.replace(/\n\n+/g, '</p><p class="text-slate-200 leading-relaxed mb-3">');
+                textHtml = textHtml.replace(/\n/g, ' ');
+                
+                // Envolver en párrafo
+                textHtml = '<p class="text-slate-200 leading-relaxed mb-3">' + textHtml + '</p>';
+                
+                html += textHtml;
+            }
+        });
+        
+        return html;
     }
+    
+    
     
     /**
      * Escapa HTML

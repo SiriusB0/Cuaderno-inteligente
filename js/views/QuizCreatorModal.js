@@ -19,14 +19,14 @@ class QuizCreatorModal {
         modal.innerHTML = `
             <div class="bg-slate-800 rounded-2xl w-full max-w-4xl max-h-[90vh] shadow-2xl border border-slate-700 flex flex-col">
                 <!-- Header -->
-                <div class="p-6 border-b border-slate-700">
+                <div class="p-4 border-b border-slate-700">
                     <div class="flex items-center justify-between">
                         <div>
-                            <h2 class="text-2xl font-bold text-white mb-1">Crear Colección de Preguntas</h2>
-                            <p class="text-slate-400 text-sm">Tema: ${topicName}</p>
+                            <h2 class="text-xl font-bold text-white">Crear Colección de Preguntas</h2>
+                            <p class="text-slate-400 text-xs">Tema: ${topicName}</p>
                         </div>
-                        <button id="close-quiz-modal" class="p-2 hover:bg-slate-700 rounded-lg transition-colors">
-                            <i data-lucide="x" class="w-6 h-6 text-slate-400"></i>
+                        <button id="close-quiz-modal" class="p-1.5 hover:bg-slate-700 rounded-lg transition-colors">
+                            <i data-lucide="x" class="w-5 h-5 text-slate-400"></i>
                         </button>
                     </div>
                 </div>
@@ -61,31 +61,17 @@ class QuizCreatorModal {
                         </div>
                     </div>
 
-                    <!-- Formato de ejemplo -->
-                    <div class="bg-slate-900/50 border border-slate-700 rounded-lg p-4">
-                        <div class="flex items-start gap-3 mb-3">
-                            <i data-lucide="info" class="w-5 h-5 text-indigo-400 flex-shrink-0 mt-0.5"></i>
-                            <div>
-                                <h3 class="text-sm font-semibold text-white mb-1">Formato de las preguntas</h3>
-                                <p class="text-xs text-slate-400">Separa cada pregunta con una línea en blanco. Usa el siguiente formato:</p>
-                            </div>
-                        </div>
-                        <div class="bg-slate-950 rounded-lg p-3 font-mono text-xs text-slate-300 space-y-1">
-                            <div>pregunta: ¿Cuál es la capital de Francia?</div>
-                            <div>opcion a: Rusia</div>
-                            <div>opcion b: Paris</div>
-                            <div>opcion c: Bogotá</div>
-                            <div>opcion d: Madrid</div>
-                            <div>respuesta: b</div>
-                            <div class="text-slate-500">explicacion: Paris es la capital de Francia (opcional)</div>
-                        </div>
-                    </div>
-
                     <!-- Área de texto para preguntas -->
                     <div>
-                        <label class="block text-sm font-medium text-slate-300 mb-2">
-                            Preguntas (en lote) *
-                        </label>
+                        <div class="flex items-center justify-between mb-2">
+                            <label class="block text-sm font-medium text-slate-300">
+                                Preguntas (en lote) *
+                            </label>
+                            <button id="insert-example-btn" class="flex items-center gap-2 px-3 py-1.5 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 rounded-lg transition-colors text-xs" title="Insertar ejemplo de formato">
+                                <i data-lucide="lightbulb" class="w-3.5 h-3.5"></i>
+                                <span>Insertar ejemplo</span>
+                            </button>
+                        </div>
                         <textarea 
                             id="quiz-questions-input"
                             class="w-full h-96 px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent font-mono text-sm resize-none"
@@ -135,6 +121,10 @@ class QuizCreatorModal {
         // Auto-update contador
         const textarea = modal.querySelector('#quiz-questions-input');
         textarea.addEventListener('input', () => this.updateQuestionCount(modal));
+        
+        // Botón de insertar ejemplo
+        const insertExampleBtn = modal.querySelector('#insert-example-btn');
+        insertExampleBtn.addEventListener('click', () => this.insertExample(modal));
     }
 
     /**
@@ -242,6 +232,25 @@ class QuizCreatorModal {
         this.close();
     }
 
+    /**
+     * Inserta un ejemplo de formato en el textarea
+     */
+    insertExample(modal) {
+        const textarea = modal.querySelector('#quiz-questions-input');
+        const exampleText = `pregunta: ¿Cuál es la capital de Francia?
+opcion a: Rusia
+opcion b: Paris
+opcion c: Bogotá
+opcion d: Madrid
+respuesta: b
+explicacion: Paris es la capital de Francia (opcional)`;
+        
+        textarea.value = exampleText;
+        textarea.focus();
+        this.updateQuestionCount(modal);
+        this.notifications.info('Ejemplo insertado. Puedes editarlo o agregar más preguntas.');
+    }
+    
     /**
      * Cierra el modal
      */

@@ -17,7 +17,7 @@ class NotificationManager {
         if (!container) {
             container = document.createElement('div');
             container.id = 'notification-container';
-            container.className = 'fixed top-4 right-4 z-50 space-y-2 w-full max-w-[280px]';
+            container.className = 'fixed top-4 left-4 z-50 space-y-2 w-full max-w-[280px]';
             document.body.appendChild(container);
         }
         

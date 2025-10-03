@@ -576,4 +576,181 @@ Todos los modales comparten:
 
 ---
 
+---
+
+## 11. Mejoras en el Chat IA - 03/10/2025
+
+### 11.1 Posición de Notificaciones
+
+**Archivo modificado:** `js/components/NotificationManager.js`
+
+**Cambio:**
+- Notificaciones movidas de esquina superior derecha a esquina superior izquierda
+- `fixed top-4 right-4` → `fixed top-4 left-4`
+
+### 11.2 Corrección de Botones del Chat IA
+
+**Archivo modificado:** `js/components/AIChatModal.js`
+
+**Problema:**
+- Los botones de cerrar y limpiar chat no funcionaban debido a selectores incorrectos
+
+**Solución:**
+```javascript
+// Antes (incorrecto)
+const closeBtn = this.modal.querySelector('#ai-chat-close-btn');
+const clearBtn = this.modal.querySelector('#ai-chat-clear-btn');
+
+// Después (correcto)
+const closeBtn = this.modal.querySelector('#ai-close-btn');
+const clearBtn = this.modal.querySelector('#ai-clear-chat-btn');
+```
+
+### 11.3 Checkboxes de Fuentes de Búsqueda
+
+**Archivo modificado:** `js/components/AIChatModal.js`
+
+**Nueva funcionalidad:**
+Tres checkboxes para controlar dónde busca el asistente IA:
+
+1. **Apuntes** (checked por defecto)
+   - Busca en el contenido del editor de texto actual
+   - Limita a 2000 caracteres para optimizar
+
+2. **Recursos** (checked por defecto)
+   - Busca en los índices JSON de PDFs, documentos, etc.
+   - Usa similitud coseno para encontrar fragmentos relevantes
+
+3. **Web externa** (unchecked por defecto)
+   - Permite que GPT-4o-mini use su conocimiento general
+   - Útil cuando no hay recursos locales sobre el tema
+
+**Validaciones implementadas:**
+```javascript
+// Debe haber al menos una fuente seleccionada
+if (!includeNotes && !includeResources && !includeWeb) {
+    throw new Error('Debes seleccionar al menos una fuente de búsqueda');
+}
+
+// Si no hay datos locales y web está deshabilitada, informar
+if (!includeWeb && topChunks.length === 0 && !editorContext) {
+    throw new Error('No hay información disponible en las fuentes seleccionadas...');
+}
+```
+
+### 11.4 Formato Markdown Mejorado
+
+**Archivo modificado:** `js/components/AIChatModal.js`
+
+**Problema:**
+Los títulos markdown (`###`) se mostraban como texto plano con símbolos `###`
+
+**Solución:**
+Función `formatMarkdown()` mejorada con soporte completo:
+
+```javascript
+formatMarkdown(text) {
+    let html = this.escapeHtml(text);
+    
+    // Títulos con estilos
+    html = html.replace(/^### (.+)$/gm, '<h3 class="text-base font-bold text-purple-300 mt-4 mb-2">$1</h3>');
+    html = html.replace(/^## (.+)$/gm, '<h2 class="text-lg font-bold text-purple-300 mt-4 mb-2">$1</h2>');
+    html = html.replace(/^# (.+)$/gm, '<h1 class="text-xl font-bold text-purple-300 mt-4 mb-2">$1</h1>');
+    
+    // Negrita y cursiva con colores
+    html = html.replace(/\*\*(.*?)\*\*/g, '<strong class="text-white font-semibold">$1</strong>');
+    html = html.replace(/\*(.*?)\*/g, '<em class="text-slate-200">$1</em>');
+    
+    // Código inline
+    html = html.replace(/`([^`]+)`/g, '<code class="bg-slate-900 px-1.5 py-0.5 rounded text-purple-300 text-xs font-mono">$1</code>');
+    
+    // Listas con viñetas
+    html = html.replace(/^- (.+)$/gm, '<li class="ml-4 text-slate-200">• $1</li>');
+    
+    return html;
+}
+```
+
+**Resultado:**
+- Los títulos ahora se muestran en morado con tamaños diferenciados
+- El código inline tiene fondo oscuro y color morado
+- Las listas tienen viñetas visibles
+- Todo el texto es legible y estéticamente agradable
+
+### 11.5 Prompt del Sistema Mejorado
+
+**Archivo modificado:** `supabase/functions/ask/index.ts`
+
+**Mejoras en la personalidad del profesor:**
+
+```typescript
+const systemPrompt = `Eres un PROFESOR EXPERTO y AMIGABLE especializado en la TUP de la UTN.
+
+TU PERSONALIDAD:
+- Eres como ese profesor que también es tu amigo: cercano, empático y motivador
+- Usas emojis ocasionalmente para hacer el aprendizaje más ameno (pero sin exagerar)
+- Tienes sentido del humor sutil que ayuda a relajar el ambiente
+- Celebras los pequeños logros y animas cuando algo es difícil
+- Hablas en un tono conversacional, como si estuvieras tomando un café con el estudiante
+
+ESTILO PEDAGÓGICO:
+7. **Empatiza**: Reconoce cuando algo es difícil
+8. **Motiva**: Usa frases como "¡Vas muy bien!", "Esto es importante, presta atención 👀"
+
+FORMATO:
+- Emojis estratégicos: 💡 para tips, ⚠️ para advertencias, ✅ para confirmaciones, 🎯 para objetivos
+```
+
+**Áreas de expertise ampliadas:**
+- Agregado: Álgebra de Boole, Lógica, Matemática Discreta
+
+**Parámetros de OpenAI optimizados:**
+```typescript
+{
+  temperature: 0.8,        // Más creativo y conversacional (antes: 0.7)
+  max_tokens: 800,         // Respuestas más completas (antes: 500)
+  frequency_penalty: 0.3,  // Evita repeticiones
+  presence_penalty: 0.2    // Fomenta variedad
+}
+```
+
+### 11.6 Validación en Backend
+
+**Archivo modificado:** `supabase/functions/ask/index.ts`
+
+**Nueva validación:**
+```typescript
+// Si no se permite web y no hay contexto, retornar error
+if (!allowWeb && (!topChunks || topChunks.length === 0) && !extraContext) {
+  return new Response(
+    JSON.stringify({ 
+      error: 'No hay información disponible en las fuentes seleccionadas',
+      message: 'Activa "Web externa" para obtener respuestas generales...'
+    }),
+    { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+  )
+}
+```
+
+### 11.7 Flujo de Uso
+
+**Escenario 1: Solo recursos locales**
+- Usuario: ✅ Apuntes, ✅ Recursos, ❌ Web externa
+- Resultado: Respuestas basadas únicamente en sus apuntes y PDFs indexados
+
+**Escenario 2: Tema sin recursos**
+- Usuario: ✅ Apuntes, ✅ Recursos, ❌ Web externa
+- No hay apuntes ni recursos sobre el tema
+- Resultado: Error informativo sugiriendo activar "Web externa"
+
+**Escenario 3: Aprendizaje general**
+- Usuario: ❌ Apuntes, ❌ Recursos, ✅ Web externa
+- Resultado: GPT-4o-mini responde con su conocimiento general, estilo pedagógico
+
+**Escenario 4: Combinado (recomendado)**
+- Usuario: ✅ Apuntes, ✅ Recursos, ✅ Web externa
+- Resultado: Respuesta enriquecida con contexto local + conocimiento general
+
+---
+
 **Fin del documento**

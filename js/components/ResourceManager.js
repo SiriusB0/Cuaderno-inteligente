@@ -1232,31 +1232,79 @@ class ResourceManager {
      * Elimina un recurso
      */
     deleteResource(resourceId) {
-        if (!confirm('¿Estás seguro de que quieres eliminar este recurso?')) {
-            return;
-        }
+        const resources = this.dataManager.data.resources[this.currentTopicId] || [];
+        const resource = resources.find(r => r.id === resourceId);
         
-        try {
-            const resources = this.dataManager.data.resources[this.currentTopicId] || [];
-            const index = resources.findIndex(r => r.id === resourceId);
-            
-            if (index > -1) {
-                resources.splice(index, 1);
-                this.dataManager.save();
-                
-                // Emitir evento para que otras vistas se actualicen
-                this.dataManager.emit('resourceDeleted', { 
-                    resourceId, 
-                    topicId: this.currentTopicId 
-                });
-                
-                this.renderResources();
-                this.notifications.success('Recurso eliminado');
+        if (!resource) return;
+        
+        this.showConfirmModal(
+            '¿Eliminar este recurso?',
+            `Se eliminará "${resource.name}". Esta acción no se puede deshacer.`,
+            () => {
+                try {
+                    const index = resources.findIndex(r => r.id === resourceId);
+                    
+                    if (index > -1) {
+                        resources.splice(index, 1);
+                        this.dataManager.save();
+                        
+                        // Emitir evento para que otras vistas se actualicen
+                        this.dataManager.emit('resourceDeleted', { 
+                            resourceId, 
+                            topicId: this.currentTopicId 
+                        });
+                        
+                        this.renderResources();
+                        this.notifications.success('Recurso eliminado');
+                    }
+                } catch (error) {
+                    console.error('Error eliminando recurso:', error);
+                    this.notifications.error('Error al eliminar el recurso');
+                }
             }
-        } catch (error) {
-            console.error('Error eliminando recurso:', error);
-            this.notifications.error('Error al eliminar el recurso');
-        }
+        );
+    }
+    
+    /**
+     * Muestra un modal de confirmación genérico
+     */
+    showConfirmModal(title, message, onConfirm) {
+        const modal = document.createElement('div');
+        modal.className = 'fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4';
+        modal.innerHTML = `
+            <div class="bg-slate-800 rounded-xl w-full max-w-md shadow-2xl border border-slate-700 animate-fade-in">
+                <div class="p-6">
+                    <h3 class="text-lg font-semibold text-white mb-3">${title}</h3>
+                    <p class="text-sm text-slate-300 mb-6">${message}</p>
+                    
+                    <div class="flex justify-end gap-3">
+                        <button id="cancel-confirm" class="px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
+                            Cancelar
+                        </button>
+                        <button id="accept-confirm" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-semibold">
+                            Eliminar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        const cancelBtn = modal.querySelector('#cancel-confirm');
+        const acceptBtn = modal.querySelector('#accept-confirm');
+        
+        cancelBtn.addEventListener('click', () => document.body.removeChild(modal));
+        acceptBtn.addEventListener('click', () => {
+            onConfirm();
+            document.body.removeChild(modal);
+        });
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) document.body.removeChild(modal);
+        });
+        
+        // Focus en botón cancelar por defecto
+        setTimeout(() => cancelBtn.focus(), 100);
     }
 }
 
