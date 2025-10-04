@@ -46,7 +46,7 @@ class Validator {
         const trimmed = name.trim();
         return trimmed.length > 0 && 
                trimmed.length <= 100 && 
-               /^[a-zA-ZáéíóúÁÉÍÓÚñÑ0-9\s\-_.()]+$/.test(trimmed);
+               /^[a-zA-ZáéíóúÁÉÍÓÚñÑ0-9\s\-_.()+]+$/.test(trimmed);
     }
     
     /**
@@ -58,7 +58,7 @@ class Validator {
         const trimmed = name.trim();
         return trimmed.length > 0 && 
                trimmed.length <= 100 && 
-               /^[a-zA-ZáéíóúÁÉÍÓÚñÑ0-9\s\-_.()]+$/.test(trimmed);
+               /^[a-zA-ZáéíóúÁÉÍÓÚñÑ0-9\s\-_.()+]+$/.test(trimmed);
     }
     
     /**
