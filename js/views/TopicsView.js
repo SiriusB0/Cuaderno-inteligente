@@ -51,6 +51,12 @@ class TopicsView {
         this.dataManager.on('resourceDeleted', () => {
             if (this.currentSubject) this.render(this.currentSubject);
         });
+        this.dataManager.on('topicPositionsUpdated', () => {
+            if (this.currentSubject) {
+                this.render(this.currentSubject);
+                this.notifications.success('Temas reordenados correctamente');
+            }
+        });
     }
     
     /**
@@ -938,11 +944,236 @@ class TopicsView {
                 this.showDeleteSubtaskConfirm(subtaskId);
             });
         });
+        
+        // Drag and drop para reordenar temas
+        this.initializeDragAndDrop();
     }
     
     /**
-     * Obtiene las subtareas de un tema
+     * Inicializa el sistema de drag and drop para reordenar temas
      */
+    initializeDragAndDrop() {
+        const topicElements = this.container.querySelectorAll('details');
+        
+        topicElements.forEach((topicElement, index) => {
+            // Hacer el elemento arrastrable
+            topicElement.draggable = true;
+            topicElement.dataset.dragIndex = index;
+            topicElement.style.cursor = 'grab';
+            
+            // Prevenir que el summary interfiera con drag and drop
+            const summary = topicElement.querySelector('summary');
+            if (summary) {
+                summary.addEventListener('dragstart', (e) => {
+                    e.stopPropagation();
+                });
+                summary.addEventListener('click', (e) => {
+                    // Solo permitir click si no hay drag activo
+                    if (this.draggedElement) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    }
+                });
+            }
+            
+            // Event listeners para drag and drop
+            topicElement.addEventListener('dragstart', (e) => this.handleDragStart(e));
+            topicElement.addEventListener('dragend', (e) => this.handleDragEnd(e));
+            topicElement.addEventListener('dragover', (e) => this.handleDragOver(e));
+            topicElement.addEventListener('drop', (e) => this.handleDrop(e));
+            topicElement.addEventListener('dragenter', (e) => this.handleDragEnter(e));
+            topicElement.addEventListener('dragleave', (e) => this.handleDragLeave(e));
+        });
+    }
+    
+    /**
+     * Maneja el inicio del arrastre
+     */
+    handleDragStart(e) {
+        this.draggedElement = e.target;
+        this.draggedIndex = parseInt(e.target.dataset.dragIndex);
+        e.target.classList.add('opacity-50', 'scale-95');
+        e.target.style.cursor = 'grabbing';
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/html', e.target.outerHTML);
+    }
+    
+    /**
+     * Maneja el fin del arrastre
+     */
+    handleDragEnd(e) {
+        e.target.classList.remove('opacity-50', 'scale-95');
+        e.target.style.cursor = 'grab';
+        this.draggedElement = null;
+        
+        // Remover todos los indicadores visuales
+        this.container.querySelectorAll('.drag-target-above, .drag-target-below').forEach(el => {
+            this.clearDragStyles(el);
+        });
+    }
+    
+    /**
+     * Maneja cuando se arrastra sobre un elemento
+     */
+    handleDragOver(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+    }
+    
+    /**
+     * Maneja cuando entra en un elemento durante el arrastre
+     */
+    handleDragEnter(e) {
+        e.preventDefault();
+        
+        const target = e.currentTarget;
+        if (target === this.draggedElement) return;
+        
+        // Limpiar cualquier indicador anterior en otros elementos
+        this.container.querySelectorAll('.drag-target-above, .drag-target-below').forEach(el => {
+            if (el !== target) {
+                this.clearDragStyles(el);
+            }
+        });
+        
+        // LÓGICA INTUITIVA: Determinar si insertar arriba o abajo basado en la dirección del arrastre
+        // Si el elemento arrastrado viene desde arriba (posición menor) → insertar abajo del target (movimiento hacia abajo)
+        // Si el elemento arrastrado viene desde abajo (posición mayor) → insertar arriba del target (movimiento hacia arriba)
+        const allTopics = Array.from(this.container.querySelectorAll('details'));
+        const draggedIndex = this.draggedIndex;
+        const targetIndex = allTopics.indexOf(target);
+        
+        // Movimiento hacia abajo: draggedIndex < targetIndex → insertar abajo del target
+        // Movimiento hacia arriba: draggedIndex > targetIndex → insertar arriba del target
+        const insertAbove = draggedIndex > targetIndex;
+        
+        // Solo aplicar si no está ya en este estado
+        const isAlreadyAbove = target.classList.contains('drag-target-above');
+        const isAlreadyBelow = target.classList.contains('drag-target-below');
+        
+        if (insertAbove && !isAlreadyBelow) {
+            // Limpiar estado anterior
+            target.classList.remove('drag-target-above');
+            // Aplicar nuevo estado - INSERTAR ARRIBA (elemento destino se mueve abajo)
+            target.classList.add('drag-target-below');
+            target.style.position = 'relative';
+            target.style.zIndex = '10';
+            target.style.transition = 'all 0.15s ease-out';
+            target.style.transform = 'translateY(1.5rem)'; // movimiento más pronunciado para "insertar arriba"
+            target.style.borderTop = '3px solid #3b82f6';
+            target.style.borderTopLeftRadius = '0.5rem';
+            target.style.borderTopRightRadius = '0.5rem';
+            target.style.boxShadow = '0 -6px 16px rgba(59, 130, 246, 0.2)';
+        } else if (!insertAbove && !isAlreadyAbove) {
+            // Limpiar estado anterior
+            target.classList.remove('drag-target-below');
+            // Aplicar nuevo estado - INSERTAR ABAJO (elemento destino se queda, borde abajo)
+            target.classList.add('drag-target-above');
+            target.style.position = 'relative';
+            target.style.zIndex = '10';
+            target.style.transition = 'all 0.15s ease-out';
+            target.style.borderBottom = '3px solid #3b82f6';
+            target.style.borderBottomLeftRadius = '0.5rem';
+            target.style.borderBottomRightRadius = '0.5rem';
+            target.style.boxShadow = '0 6px 16px rgba(59, 130, 246, 0.2)';
+        }
+    }
+    
+    /**
+     * Maneja cuando sale de un elemento durante el arrastre
+     */
+    handleDragLeave(e) {
+        const target = e.currentTarget;
+        // Solo limpiar si realmente estamos saliendo del elemento (no moviéndonos a un elemento hijo)
+        if (!target.contains(e.relatedTarget) && e.relatedTarget !== target) {
+            this.clearDragStyles(target);
+        }
+    }
+    
+    /**
+     * Maneja el soltar del elemento
+     */
+    handleDrop(e) {
+        e.preventDefault();
+        
+        const target = e.currentTarget;
+        if (target === this.draggedElement) return;
+        
+        // Obtener el contenedor de temas
+        const topicContainer = target.parentElement;
+        const allTopics = Array.from(topicContainer.querySelectorAll('details'));
+        
+        // Determinar posición de inserción usando la misma lógica intuitiva que dragEnter
+        // Movimiento hacia abajo: draggedIndex < targetIndex → insertar abajo del target
+        // Movimiento hacia arriba: draggedIndex > targetIndex → insertar arriba del target
+        const targetIndex = allTopics.indexOf(target);
+        const draggedIndex = this.draggedIndex;
+        const insertBefore = draggedIndex > targetIndex;
+        
+        // Calcular nueva posición
+        let newIndex;
+        if (insertBefore) {
+            newIndex = targetIndex;
+        } else {
+            newIndex = targetIndex + 1;
+        }
+        
+        // Si la nueva posición es después del elemento arrastrado, ajustar
+        if (newIndex > draggedIndex) {
+            newIndex--;
+        }
+        
+        // Reordenar elementos DOM
+        const draggedElement = this.draggedElement;
+        if (insertBefore) {
+            topicContainer.insertBefore(draggedElement, target);
+        } else {
+            topicContainer.insertBefore(draggedElement, target.nextSibling);
+        }
+        
+        // Actualizar posiciones en data
+        this.updateTopicPositions();
+        
+        // Limpiar estado
+        this.draggedElement = null;
+        this.container.querySelectorAll('.drag-target-above, .drag-target-below').forEach(el => {
+            this.clearDragStyles(el);
+        });
+    }
+    
+    /**
+     * Limpia todos los estilos de drag and drop de un elemento
+     */
+    clearDragStyles(element) {
+        element.classList.remove('drag-target-above', 'drag-target-below');
+        element.style.position = '';
+        element.style.zIndex = '';
+        element.style.transition = '';
+        element.style.transform = '';
+        element.style.borderTop = '';
+        element.style.borderBottom = '';
+        element.style.borderTopLeftRadius = '';
+        element.style.borderTopRightRadius = '';
+        element.style.borderBottomLeftRadius = '';
+        element.style.borderBottomRightRadius = '';
+        element.style.boxShadow = '';
+    }
+    updateTopicPositions() {
+        const topicElements = this.container.querySelectorAll('details');
+        const topicPositions = [];
+        
+        topicElements.forEach((element, index) => {
+            const topicId = element.querySelector('.add-subtask-btn')?.dataset.topicId;
+            if (topicId) {
+                topicPositions.push({ id: topicId, position: index });
+            }
+        });
+        
+        // Actualizar en DataManager
+        this.dataManager.updateTopicPositions(this.currentSubject.id, topicPositions);
+        
+        // No re-renderizar aquí, el event listener lo hará
+    }
     getTopicSubtasks(topicId) {
         return this.dataManager.data.subtasks?.[topicId] || [];
     }

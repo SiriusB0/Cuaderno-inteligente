@@ -11,6 +11,9 @@ class DataManager {
         this.syncEnabled = true; // Habilitar sincronización con Supabase
         this.syncQueue = []; // Cola de operaciones pendientes
         this.loadFromSupabase(); // Cargar datos desde Supabase al iniciar
+        
+        // Migrar posiciones de temas si es necesario
+        this.migrateTopicPositions();
     }
     
     /**
@@ -74,6 +77,7 @@ class DataManager {
                     subjectId: 'subj_1',
                     name: "Derivadas",
                     description: "Concepto y aplicaciones de derivadas",
+                    position: 0,
                     createdAt: new Date().toISOString()
                 },
                 {
@@ -81,6 +85,7 @@ class DataManager {
                     subjectId: 'subj_1',
                     name: "Integrales",
                     description: "Cálculo integral y sus aplicaciones",
+                    position: 1,
                     createdAt: new Date().toISOString()
                 }
             ],
@@ -208,7 +213,15 @@ class DataManager {
     // === GESTIÓN DE TEMAS ===
     
     getTopics(subjectId) {
-        return this.data.topics.filter(t => t.subjectId === subjectId);
+        const topics = this.data.topics.filter(t => t.subjectId === subjectId);
+        // Ordenar por posición, si no tiene posición usar createdAt como fallback
+        return topics.sort((a, b) => {
+            if (a.position !== undefined && b.position !== undefined) {
+                return a.position - b.position;
+            }
+            // Fallback para temas existentes sin posición
+            return new Date(a.createdAt) - new Date(b.createdAt);
+        });
     }
     
     getTopic(id) {
@@ -220,11 +233,18 @@ class DataManager {
             // Sanitizar y validar datos
             const sanitizedData = Validator.sanitizeAndValidate(topicData, 'topic');
             
+            // Obtener la siguiente posición para este subject
+            const subjectTopics = this.getTopics(sanitizedData.subjectId);
+            const nextPosition = subjectTopics.length > 0 
+                ? Math.max(...subjectTopics.map(t => t.position || 0)) + 1 
+                : 0;
+            
             const topic = {
                 id: `topic_${Date.now()}`,
                 subjectId: sanitizedData.subjectId,
                 name: sanitizedData.name,
                 description: sanitizedData.description,
+                position: nextPosition,
                 createdAt: new Date().toISOString()
             };
             
@@ -272,6 +292,45 @@ class DataManager {
         
         // Sincronizar con Supabase
         this.syncToSupabase('topics', 'DELETE', { id });
+    }
+    
+    /**
+     * Migra temas existentes para agregar posiciones si no las tienen
+     */
+    migrateTopicPositions() {
+        // Agrupar temas por subjectId
+        const subjectGroups = {};
+        this.data.topics.forEach(topic => {
+            if (!subjectGroups[topic.subjectId]) {
+                subjectGroups[topic.subjectId] = [];
+            }
+            subjectGroups[topic.subjectId].push(topic);
+        });
+        
+        // Para cada grupo de temas, asignar posiciones si no las tienen
+        Object.keys(subjectGroups).forEach(subjectId => {
+            const topics = subjectGroups[subjectId];
+            const topicsWithoutPosition = topics.filter(t => t.position === undefined);
+            
+            if (topicsWithoutPosition.length > 0) {
+                // Ordenar por createdAt para mantener el orden original
+                topicsWithoutPosition.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+                
+                // Encontrar la posición máxima actual
+                const maxPosition = topics
+                    .filter(t => t.position !== undefined)
+                    .reduce((max, t) => Math.max(max, t.position), -1);
+                
+                // Asignar posiciones a temas sin posición
+                topicsWithoutPosition.forEach((topic, index) => {
+                    topic.position = maxPosition + 1 + index;
+                });
+            }
+        });
+        
+        // Guardar cambios
+        this.save();
+        console.log('[Migration] Posiciones de temas migradas');
     }
     
     // === GESTIÓN DE PÁGINAS ===
