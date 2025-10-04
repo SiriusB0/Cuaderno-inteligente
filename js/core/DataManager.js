@@ -51,7 +51,7 @@ class DataManager {
      */
     getDefaultData() {
         return {
-            userName: 'Estudiante',
+            userName: 'José',
             currentPeriod: 'Cuatrimestre 1 - 2025',
             subjects: [
                 {

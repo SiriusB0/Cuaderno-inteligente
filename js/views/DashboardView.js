@@ -116,13 +116,14 @@ class DashboardView {
      * Renderiza el encabezado del dashboard
      */
     renderHeader() {
-        const userName = this.dataManager.data.userName || 'Estudiante';
+        const userName = 'José'; // Nombre fijo por ahora
+        const greeting = this.getTimeBasedGreeting(userName);
         
         return `
             <header class="flex items-center justify-between mb-6">
                 <div>
                     <h1 class="text-3xl font-bold bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent mb-1">
-                        ¡Hola, ${userName}!
+                        ${greeting}
                     </h1>
                     <p class="text-slate-400 text-sm mt-0.5" id="motivational-quote">Cargando frase motivacional...</p>
                 </div>
@@ -130,7 +131,7 @@ class DashboardView {
                     
                     <div class="relative">
                         <button id="profile-menu-btn" class="w-10 h-10 bg-gradient-to-br from-pink-500 to-violet-500 rounded-full flex items-center justify-center text-white font-bold hover:scale-105 transition-transform">
-                            ${userName.charAt(0).toUpperCase()}
+                            J
                         </button>
                         <div id="profile-menu" class="hidden absolute right-0 top-full mt-2 w-56 bg-slate-800 rounded-xl shadow-2xl border border-slate-700 py-2 z-50">
                             <button id="config-credentials-menu" class="w-full px-4 py-2.5 text-left hover:bg-slate-700 transition-colors flex items-center gap-3 text-slate-200">
@@ -2247,6 +2248,25 @@ class DashboardView {
         if (window.lucide) {
             window.lucide.createIcons();
         }
+    }
+    
+    /**
+     * Obtiene un saludo basado en la hora del día
+     */
+    getTimeBasedGreeting(userName) {
+        const now = new Date();
+        const hour = now.getHours();
+        
+        let greeting;
+        if (hour >= 6 && hour < 12) {
+            greeting = "¡Buenos días";
+        } else if (hour >= 12 && hour < 19) {
+            greeting = "¡Buenas tardes";
+        } else {
+            greeting = "¡Buenas noches";
+        }
+        
+        return `${greeting}, ${userName}!`;
     }
 }
 
