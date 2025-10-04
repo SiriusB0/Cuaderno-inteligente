@@ -1112,6 +1112,17 @@ class AIChatModal {
     }
 
     /**
+     * Oculta el modal
+     */
+    hide() {
+        if (this.modal) {
+            this.isVisible = false;
+            this.modal.classList.add('hidden');
+            this.modal.style.display = 'none';
+        }
+    }
+    
+    /**
      * Oculta el indicador de "pensando"
      */
     hideThinkingIndicator() {
