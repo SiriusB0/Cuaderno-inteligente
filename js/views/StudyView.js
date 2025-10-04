@@ -39,6 +39,11 @@ class StudyView {
         this.diagramManager = new ExcalidrawManager(dataManager, notifications);
         this.aiChatModal = new AIChatModal(dataManager, notifications);
         
+        // Hacer ResourceManager disponible globalmente para los event listeners
+        if (window.app) {
+            window.app.resourceManager = this.resourceManager;
+        }
+        
         // Carousel state
         this.carouselOffset = 0;
         
@@ -527,13 +532,24 @@ class StudyView {
      * Renderiza la lista de páginas
      */
     renderPagesList() {
-        const pagesList = document.getElementById('pages-list');
-        const pageCounter = document.getElementById('page-counter');
-        
-        if (!pagesList) {
-            console.error('No se encontró el elemento pages-list');
-            return;
-        }
+        // Esperar un tick para asegurar que el DOM esté listo
+        setTimeout(() => {
+            const pagesList = document.getElementById('pages-list');
+            const pageCounter = document.getElementById('page-counter');
+            
+            if (!pagesList) {
+                console.error('No se encontró el elemento pages-list');
+                return;
+            }
+            
+            this._renderPagesListContent(pagesList, pageCounter);
+        }, 0);
+    }
+    
+    /**
+     * Renderiza el contenido de la lista de páginas
+     */
+    _renderPagesListContent(pagesList, pageCounter) {
         
         // Actualizar contador
         if (pageCounter) {

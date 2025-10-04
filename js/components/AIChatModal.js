@@ -1,23 +1,27 @@
 /**
- * AIChatModal - Modal de chat con IA usando RAG ligero
- * Carga índices JSON estáticos, hace búsqueda por similitud en el navegador
- * y consulta a Edge Function de Supabase para obtener respuestas de GPT-4o-mini
+ * Modal de chat con IA integrada
  */
-
 class AIChatModal {
+    /**
+     * Constructor
+     */
     constructor(dataManager, notifications) {
         this.dataManager = dataManager;
         this.notifications = notifications;
         
-        this.isVisible = false;
-        this.isExpanded = false; // Estado de vista expandida
+        // Cache del índice para optimizar rendimiento
+        this.indexCache = null;
+        this.indexCacheKey = null;
+        this.lastIndexUpdate = 0;
+        this.indexCacheTimeout = 1000 * 60 * 5; // 5 minutos
+        
+        this.messages = [];
+        this.isLoading = false;
         this.currentSubject = null;
         this.currentTopic = null;
-        this.indexCache = null; // Cache del índice JSON cargado
-        this.messages = []; // Historial de mensajes
-        this.isLoading = false;
+        this.currentTopicId = null;
         
-        this.modal = null;
+        // URLs de Supabase (configurar con tus credenciales)
         this.SUPABASE_URL = 'https://xsumibufekrmfcenyqgq.supabase.co';
         this.SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhzdW1pYnVmZWtybWZjZW55cWdxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk0OTExOTIsImV4cCI6MjA3NTA2NzE5Mn0.x-vdT-84cEOj-5SDOVfDbgZMVVWczj8iVM0P_VoEkBc';
     }
@@ -26,8 +30,12 @@ class AIChatModal {
      * Muestra el modal de chat
      */
     show(subject, topic) {
+        // Detectar si cambió el tema
+        const topicChanged = this.currentTopic?.id !== topic?.id;
+        
         this.currentSubject = subject;
         this.currentTopic = topic;
+        this.currentTopicId = subject.id; // ID de la materia donde están los recursos
         
         if (!this.modal) {
             this.createModal();
@@ -37,27 +45,31 @@ class AIChatModal {
         this.modal.classList.remove('hidden');
         this.modal.style.display = 'flex';
         
-        // Cargar índice JSON si no está en cache
-        if (!this.indexCache) {
+        // SIEMPRE recargar índice si cambió el tema o no existe
+        if (topicChanged || !this.indexCache) {
+            this.indexCache = null; // Limpiar cache anterior
+            this.indexCacheKey = null; // Forzar recreación con configuración original
+            this.lastIndexUpdate = 0;
             this.loadIndex();
         }
         
+        // Actualizar contexto en la UI
+        this.updateContextInfo();
+        
         // Focus en el input
         setTimeout(() => {
-            const input = this.modal.querySelector('#ai-chat-input');
             if (input) input.focus();
         }, 100);
     }
     
     /**
-     * Oculta el modal
+     * Limpia el chat
      */
-    hide() {
-        this.isVisible = false;
-        if (this.modal) {
-            this.modal.classList.add('hidden');
-            this.modal.style.display = 'none';
-        }
+    clearChat() {
+        this.messages = [];
+        this.renderMessages();
+        this.hideThinkingIndicator(); // Limpiar indicadores de pensamiento
+        this.notifications.success('Chat limpiado');
     }
     
     /**
@@ -75,12 +87,13 @@ class AIChatModal {
             this.show(subject, topic);
         }
     }
+    
     /**
      * Crea el modal en el DOM
      */
     createModal() {
         const modalHTML = `
-        <div id="ai-chat-modal" class="fixed inset-0 z-50 hidden flex-col bg-slate-800 shadow-2xl" style="width: 90vw; margin: 0 auto;">
+        <div id="ai-chat-modal" class="fixed inset-0 z-50 hidden flex-col bg-slate-800 shadow-2xl" style="width: 70vw; margin: 0 auto; left: 15vw; right: 15vw;">
                 <!-- Header compacto -->
                 <div class="flex items-center justify-between px-4 py-2 border-b border-slate-700 bg-slate-900">
                     <div class="flex items-center gap-4">
@@ -204,6 +217,8 @@ class AIChatModal {
         const subjectSlug = this.normalizeSlug(this.currentSubject.name);
         const topicSlug = this.normalizeSlug(this.currentTopic.name);
         
+        console.log('[DEBUG] Cargando índice para:', subjectSlug, '/', topicSlug);
+        
         this.updateIndexStatus('⏳ Cargando índice...', 'info');
         
         try {
@@ -219,7 +234,10 @@ class AIChatModal {
             }
             
             if (!response.ok) {
-                throw new Error('Índice no encontrado');
+                // Si no hay índices remotos, crear uno local simulado con los recursos disponibles
+                console.log('[DEBUG] No se encontró índice remoto, creando simulación local');
+                await this.createLocalIndex();
+                return;
             }
             
             const index = await response.json();
@@ -228,12 +246,18 @@ class AIChatModal {
                 throw new Error('Índice vacío o inválido');
             }
             
-            this.indexCache = index;
-            this.updateIndexStatus(index.length, 'success');
+            console.log('[DEBUG] Índice cargado:', index.length, 'chunks');
+            console.log('[DEBUG] Primer chunk del índice:', index[0]?.sourceName);
+            
+            // Filtrar chunks solo de recursos indexados
+            const filteredIndex = this.filterIndexedChunks(index);
+            
+            this.indexCache = filteredIndex;
+            this.updateIndexStatus(filteredIndex.length, 'success');
             this.updateContextInfo();
             
         } catch (error) {
-            console.error('Error cargando índice:', error);
+            console.error('[DEBUG] Error cargando índice:', error);
             this.indexCache = null;
             this.updateIndexStatus('⚠️ Sin índice - usando solo apuntes', 'warning');
             this.updateContextInfo();
@@ -241,15 +265,134 @@ class AIChatModal {
     }
     
     /**
-     * Normaliza un string para slug (sin espacios, minúsculas, sin acentos)
+     * Crea un índice local simulado con los recursos disponibles (para demo sin backend)
      */
-    normalizeSlug(text) {
-        return text
-            .toLowerCase()
-            .normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '') // Quitar acentos
-            .replace(/[^a-z0-9]+/g, '-') // Reemplazar espacios y caracteres especiales por -
-            .replace(/^-|-$/g, ''); // Quitar guiones al inicio/fin
+    async createLocalIndex() {
+        console.log('[DEBUG] Creando índice local simulado...');
+        
+        // Obtener recursos indexados de la materia actual
+        const topicResources = window.app.dataManager.data.resources[this.currentTopicId] || [];
+        const indexedResources = topicResources.filter(r => r.indexed !== false);
+        
+        // Crear clave del caché basada en el estado de indexación
+        const cacheKey = `${this.currentSubject.id}-${this.currentTopic.id}-${indexedResources.map(r => `${r.id}-${r.indexed}`).sort().join('-')}`;
+        
+        // Verificar si ya tenemos un caché válido
+        if (this.indexCache && this.indexCacheKey === cacheKey && 
+            (Date.now() - this.lastIndexUpdate) < this.indexCacheTimeout) {
+            console.log('[DEBUG] Usando índice del caché - válido por', Math.round((this.indexCacheTimeout - (Date.now() - this.lastIndexUpdate)) / 1000), 'segundos');
+            return;
+        }
+        
+        console.log('[DEBUG] Recursos indexados encontrados:', indexedResources.length);
+        
+        if (indexedResources.length === 0) {
+            console.log('[DEBUG] No hay recursos indexados, no se puede crear índice local');
+            this.indexCache = null;
+            this.updateIndexStatus('⚠️ Sin recursos indexados', 'warning');
+            this.updateContextInfo();
+            return;
+        }
+        
+        // Crear chunks simulados de los recursos
+        const chunks = [];
+        
+        for (const resource of indexedResources) {
+            try {
+                // Decodificar el contenido base64
+                const base64Data = resource.data.split(',')[1];
+                const text = atob(base64Data);
+                
+                // Solo procesar archivos de texto
+                if (resource.type === 'text' || resource.mimeType === 'text/plain') {
+                    // Dividir el texto en chunks de ~500 caracteres
+                    const chunkSize = 500;
+                    const words = text.split(/\s+/);
+                    
+                    for (let i = 0; i < words.length; i += Math.floor(chunkSize / 6)) { // ~6 chars por palabra promedio
+                        const chunkWords = words.slice(i, i + Math.floor(chunkSize / 6));
+                        const chunkText = chunkWords.join(' ');
+                        
+                        if (chunkText.trim().length > 50) { // Solo chunks con contenido significativo
+                            chunks.push({
+                                text: chunkText,
+                                sourceName: resource.name,
+                                sourceUrl: null,
+                                embedding: await this.getQueryEmbedding(chunkText), // Simulado - esperar el Promise
+                                topicSlug: this.normalizeSlug(this.currentTopic.name)
+                            });
+                        }
+                    }
+                    
+                    console.log(`[DEBUG] Procesado ${resource.name}: ${Math.ceil(words.length / Math.floor(chunkSize / 6))} chunks`);
+                }
+            } catch (error) {
+                console.warn(`[DEBUG] Error procesando recurso ${resource.name}:`, error);
+            }
+        }
+        
+        console.log(`[DEBUG] Índice local creado con ${chunks.length} chunks totales`);
+        
+        if (chunks.length === 0) {
+            this.indexCache = null;
+            this.updateIndexStatus('⚠️ No se pudieron procesar recursos', 'warning');
+        } else {
+            this.indexCache = chunks;
+            this.indexCacheKey = cacheKey;
+            this.lastIndexUpdate = Date.now();
+            this.updateIndexStatus(chunks.length, 'success');
+            console.log(`[DEBUG] Índice guardado en caché con clave: ${cacheKey}`);
+        }
+        
+        this.updateContextInfo();
+    }
+    /**
+     * Invalida el caché del índice cuando cambie el estado de indexación
+     */
+    invalidateIndexCache() {
+        console.log('[DEBUG] Invalidando caché del índice por cambio en indexación');
+        this.indexCache = null;
+        this.indexCacheKey = null;
+        this.lastIndexUpdate = 0;
+    }
+    /**
+     * Filtra chunks del índice para incluir solo recursos indexados
+     */
+    filterIndexedChunks(index) {
+        if (!this.currentTopicId || !window.app?.dataManager?.data?.resources) {
+            console.log('[DEBUG] No hay datos para filtrar indexación');
+            return index;
+        }
+        
+        const topicResources = window.app.dataManager.data.resources[this.currentTopicId] || [];
+        const indexedResourceNames = new Set();
+        
+        // Crear set de nombres de recursos indexados
+        topicResources.forEach(resource => {
+            if (resource.indexed !== false) { // Por defecto true si no está definido
+                const fileName = resource.name.toLowerCase().replace(/\.[^/.]+$/, ''); // Sin extensión
+                indexedResourceNames.add(fileName);
+            }
+        });
+        
+        console.log('[DEBUG] Recursos indexados encontrados:', indexedResourceNames.size);
+        
+        // Filtrar chunks que pertenezcan a recursos indexados
+        const filteredIndex = index.filter(chunk => {
+            if (!chunk.sourceName) return true; // Mantener chunks sin nombre de fuente
+            
+            const chunkFileName = chunk.sourceName.toLowerCase().replace(/\.[^/.]+$/, '');
+            const isIndexed = indexedResourceNames.has(chunkFileName);
+            
+            if (!isIndexed) {
+                console.log('[DEBUG] Excluyendo chunk de recurso no indexado:', chunk.sourceName);
+            }
+            
+            return isIndexed;
+        });
+        
+        console.log('[DEBUG] Chunks después de filtrar indexación:', filteredIndex.length, 'de', index.length);
+        return filteredIndex;
     }
     
     /**
@@ -306,33 +449,39 @@ class AIChatModal {
     async sendMessage() {
         const input = this.modal.querySelector('#ai-chat-input');
         const query = input?.value.trim();
-        
+
         if (!query || this.isLoading) return;
-        
+
         // Limpiar input
         input.value = '';
-        
-        // Añadir mensaje del usuario
+
+        // Añadir mensaje del usuario con indicador de "pensando"
         this.addMessage('user', query);
         
+        // Agregar indicador visual de "pensando" junto al mensaje del usuario
+        this.showThinkingIndicator();
+
         // Marcar como cargando
         this.isLoading = true;
         this.updateSendButton(true);
-        
+
         try {
             // Obtener respuesta de IA
             const response = await this.getAIResponse(query);
-            
+
             // Añadir respuesta
             this.addMessage('assistant', response.answer, response.sources);
             
         } catch (error) {
             console.error('Error obteniendo respuesta:', error);
-            this.addMessage('error', `Error: ${error.message}`);
+            this.addMessage('error', error.message);
             this.notifications.error('Error al consultar IA');
         } finally {
             this.isLoading = false;
             this.updateSendButton(false);
+            
+            // Ocultar indicador de pensamiento
+            this.hideThinkingIndicator();
         }
     }
     
@@ -348,30 +497,119 @@ class AIChatModal {
         // 2. Obtener apuntes del editor si está activado
         let editorContext = '';
         if (includeNotes) {
-            const editor = document.getElementById('text-editor');
+            // Intentar múltiples selectores para encontrar el editor
+            const editorSelectors = [
+                '#text-editor',
+                '[contenteditable="true"]',
+                '.editor-content',
+                '.ProseMirror'
+            ];
+
+            let editor = null;
+            for (const selector of editorSelectors) {
+                editor = document.querySelector(selector);
+                if (editor) break;
+            }
+
             if (editor) {
-                editorContext = editor.innerText.trim();
-                // Limitar a 2000 caracteres para no saturar
-                if (editorContext.length > 2000) {
-                    editorContext = editorContext.substring(0, 2000) + '...';
+                // Obtener el texto de diferentes formas
+                editorContext = editor.innerText || editor.textContent || '';
+
+                // Si aún está vacío, intentar otros métodos
+                if (!editorContext.trim()) {
+                    // Para editores tipo ProseMirror o Quill
+                    const textNodes = editor.querySelectorAll('p, div, span, h1, h2, h3, li');
+                    editorContext = Array.from(textNodes)
+                        .map(node => node.textContent || '')
+                        .join(' ')
+                        .trim();
                 }
+
+                console.log('[DEBUG] Editor encontrado, contenido:', editorContext.substring(0, 200));
+
+                // Limitar a 3000 caracteres para no saturar
+                if (editorContext.length > 3000) {
+                    editorContext = editorContext.substring(0, 3000) + '...';
+                }
+            } else {
+                console.warn('[DEBUG] No se encontró ningún elemento de editor');
             }
         }
         
         // 3. Si hay índice y recursos está habilitado, buscar chunks relevantes
+        // FILTRAR SOLO RECURSOS DEL TEMA ACTUAL
         let topChunks = [];
         if (includeResources && this.indexCache && this.indexCache.length > 0) {
-            topChunks = await this.findRelevantChunks(query, 5);
+            // Verificar si el índice tiene información de temas
+            const hasTopicInfo = this.indexCache.some(chunk => chunk.topicSlug);
+
+            if (hasTopicInfo) {
+                // Filtrar por tema actual si el índice tiene información de temas
+                const currentTopicSlug = this.normalizeSlug(this.currentTopic.name);
+                const filteredChunks = this.indexCache.filter(chunk => {
+                    return chunk.topicSlug === currentTopicSlug;
+                });
+
+            // console.log('[DEBUG] Índice tiene info de temas - filtrando:', filteredChunks.length, 'chunks para tema', currentTopicSlug);
+
+                if (filteredChunks.length > 0) {
+                    topChunks = await this.findRelevantChunksInArray(query, filteredChunks, 5);
+                }
+            } else {
+                // Índice antiguo sin info de temas - usar todos (riesgo de mezclar temas)
+                console.log('[DEBUG] Índice antiguo sin info de temas - usando todos los chunks');
+                topChunks = await this.findRelevantChunksInArray(query, this.indexCache, 5);
+            }
+
+            console.log('[DEBUG] Chunks finales encontrados:', topChunks.length);
+            if (topChunks.length > 0) {
+                console.log('[DEBUG] Primer chunk:', topChunks[0].sourceName);
+            }
         }
         
         // 4. Validar que al menos una fuente esté habilitada
         if (!includeNotes && !includeResources && !includeWeb) {
-            throw new Error('Debes seleccionar al menos una fuente de búsqueda');
+            throw new Error('💭 Selecciona al menos una fuente para buscar');
         }
         
-        // 5. Si no hay recursos ni apuntes pero web está deshabilitada, informar
-        if (!includeWeb && topChunks.length === 0 && !editorContext) {
-            throw new Error('No hay información disponible en las fuentes seleccionadas. Activa "Web externa" para obtener respuestas generales.');
+        // 5. Verificar si las fuentes habilitadas tienen contenido disponible
+        if (!includeWeb) {
+            let hasContent = false;
+            let missingSources = [];
+            
+            // Verificar recursos si están habilitados
+            if (includeResources) {
+                if (topChunks.length === 0) {
+                    // Verificar si hay recursos indexados disponibles
+                    const topicResources = window.app.dataManager.data.resources[this.currentTopicId] || [];
+                    const indexedResources = topicResources.filter(r => r.indexed !== false);
+                    if (indexedResources.length === 0) {
+                        missingSources.push('recursos indexados');
+                    } else {
+                        missingSources.push('contenido relevante');
+                    }
+                } else {
+                    hasContent = true;
+                }
+            }
+            
+            // Verificar apuntes si están habilitados
+            if (includeNotes) {
+                if (!editorContext || editorContext.trim().length === 0) {
+                    missingSources.push('apuntes en el editor');
+                } else {
+                    hasContent = true;
+                }
+            }
+            
+            // Si no hay contenido disponible, mostrar mensaje específico
+            if (!hasContent && missingSources.length > 0) {
+                if (missingSources.length === 1) {
+                    throw new Error(`😔 No hay ${missingSources[0]} disponibles`);
+                } else {
+                    throw new Error(`😔 No hay ${missingSources.join(' ni ')} disponibles`);
+                }
+            }
         }
         
         // 6. Llamar a Edge Function (o fallback local si no está configurada)
@@ -402,29 +640,29 @@ class AIChatModal {
         });
         
         if (!response.ok) {
-            throw new Error(`Error del servidor: ${response.status}`);
+            throw new Error(`🤖 Problema técnico, intenta de nuevo en unos momentos`);
         }
         
         return await response.json();
     }
     
     /**
-     * Encuentra chunks relevantes usando similitud coseno
+     * Encuentra chunks relevantes usando similitud coseno (versión que recibe array)
      */
-    async findRelevantChunks(query, topK = 5) {
-        if (!this.indexCache || this.indexCache.length === 0) {
+    async findRelevantChunksInArray(query, chunksArray, topK = 5) {
+        if (!chunksArray || chunksArray.length === 0) {
             return [];
         }
-        
+
         // 1. Obtener embedding del query (simulado - en producción llamar a OpenAI)
         const queryEmbedding = await this.getQueryEmbedding(query);
-        
+
         // 2. Calcular similitud con cada chunk
-        const similarities = this.indexCache.map(chunk => ({
+        const similarities = chunksArray.map(chunk => ({
             ...chunk,
             similarity: this.cosineSimilarity(queryEmbedding, chunk.embedding)
         }));
-        
+
         // 3. Ordenar y tomar top K
         similarities.sort((a, b) => b.similarity - a.similarity);
         return similarities.slice(0, topK);
@@ -514,8 +752,121 @@ class AIChatModal {
      * Añade un mensaje al chat
      */
     addMessage(role, content, sources = []) {
-        this.messages.push({ role, content, sources, timestamp: Date.now() });
-        this.renderMessages();
+        const message = { role, content, sources, timestamp: Date.now() };
+        this.messages.push(message);
+        
+        // Si es respuesta del asistente, usar efecto de escritura
+        if (role === 'assistant') {
+            this.renderMessagesWithTypingEffect(message);
+        } else {
+            this.renderMessages();
+        }
+    }
+    
+    /**
+     * Renderiza mensajes con efecto de escritura para el último mensaje del asistente
+     */
+    async renderMessagesWithTypingEffect(lastMessage) {
+        const container = this.modal.querySelector('#ai-chat-messages');
+        if (!container) return;
+        
+        // Renderizar todos los mensajes excepto el último
+        const previousMessages = this.messages.slice(0, -1);
+        container.innerHTML = previousMessages.map(msg => this.formatMessage(msg)).join('');
+        
+        // Crear elemento para el mensaje que se está escribiendo
+        const typingDiv = document.createElement('div');
+        typingDiv.className = 'flex justify-start';
+        typingDiv.innerHTML = `
+            <div class="text-slate-100 px-1 py-2 max-w-[85%] text-sm">
+                <div class="typing-content"></div>
+                <span class="typing-cursor">|</span>
+            </div>
+        `;
+        container.appendChild(typingDiv);
+        
+        const typingContent = typingDiv.querySelector('.typing-content');
+        const typingCursor = typingDiv.querySelector('.typing-cursor');
+        
+        // Animar cursor parpadeante
+        typingCursor.style.animation = 'blink 0.7s infinite';
+        
+        // Efecto de escritura más rápido (varias palabras a la vez)
+        const text = lastMessage.content;
+        const words = text.split(' ');
+        let currentWordIndex = 0;
+        const wordsPerIteration = 3; // Mostrar 3 palabras por vez
+        const typingSpeed = 15; // ms por iteración (más rápido)
+
+        const typeNextBatch = () => {
+            if (currentWordIndex < words.length) {
+                // Agregar múltiples palabras por iteración
+                const nextIndex = Math.min(currentWordIndex + wordsPerIteration, words.length);
+                const displayText = words.slice(0, nextIndex).join(' ');
+                typingContent.innerHTML = this.formatMarkdown(displayText);
+                currentWordIndex = nextIndex;
+                container.scrollTop = container.scrollHeight;
+                setTimeout(typeNextBatch, typingSpeed);
+            } else {
+                // Escritura completada - remover cursor y renderizar mensaje completo con fuentes
+                typingCursor.remove();
+                typingDiv.innerHTML = this.formatMessage(lastMessage);
+
+                // Actualizar iconos
+                if (window.lucide) window.lucide.createIcons();
+
+                // Agregar event listeners para botones de copiar
+                this.attachCopyCodeListeners(container);
+            }
+        };
+
+        typeNextBatch();
+    }
+    
+    /**
+     * Formatea un mensaje individual
+     */
+    formatMessage(msg) {
+        if (msg.role === 'user') {
+            return `
+                <div class="flex justify-end items-center">
+                    <div class="bg-slate-700 text-slate-100 px-4 py-2.5 rounded-2xl max-w-[85%] text-sm">
+                        ${this.escapeHtml(msg.content)}
+                    </div>
+                </div>
+            `;
+        } else if (msg.role === 'error') {
+            return `
+                <div class="flex justify-start items-center">
+                    <div class="bg-amber-50/30 text-amber-800 px-4 py-2 rounded-lg max-w-[85%] text-sm border border-amber-200 dark:bg-amber-950/30 dark:text-amber-200 dark:border-amber-800">
+                        ${this.escapeHtml(msg.content)}
+                    </div>
+                </div>
+            `;
+        } else {
+            // Assistant message
+            const sourcesHtml = msg.sources && msg.sources.length > 0 ? `
+                <div class="mt-2 pt-2 border-t border-slate-600">
+                    <p class="text-xs text-slate-400 mb-1">Fuentes:</p>
+                    <div class="flex flex-wrap gap-1">
+                        ${msg.sources.map(source => `
+                            <span class="text-xs bg-slate-700 px-2 py-1 rounded-full text-slate-300" title="${this.escapeHtml(source.snippet || '')}">
+                                📄 ${this.escapeHtml(source.name)}
+                            </span>
+                        `).join('')}
+                    </div>
+                </div>
+            ` : '';
+
+            return `
+                <div class="flex justify-start items-center">
+                    <div class="text-slate-100 px-1 py-2 max-w-[85%] text-sm">
+                        ${this.formatMarkdown(msg.content)}
+                        ${sourcesHtml}
+                    </div>
+                </div>
+            `;
+        }
     }
     
     /**
@@ -536,48 +887,7 @@ class AIChatModal {
             return;
         }
         
-        container.innerHTML = this.messages.map(msg => {
-            if (msg.role === 'user') {
-                return `
-                    <div class="flex justify-end">
-                        <div class="bg-slate-700 text-slate-100 px-4 py-2.5 rounded-2xl max-w-[85%] text-sm">
-                            ${this.escapeHtml(msg.content)}
-                        </div>
-                    </div>
-                `;
-            } else if (msg.role === 'error') {
-                return `
-                    <div class="flex justify-start">
-                        <div class="bg-red-900/50 text-red-200 px-4 py-2 rounded-lg max-w-[85%] text-sm border border-red-700">
-                            ${this.escapeHtml(msg.content)}
-                        </div>
-                    </div>
-                `;
-            } else {
-                // Assistant message
-                const sourcesHtml = msg.sources && msg.sources.length > 0 ? `
-                    <div class="mt-2 pt-2 border-t border-slate-600">
-                        <p class="text-xs text-slate-400 mb-1">Fuentes:</p>
-                        <div class="flex flex-wrap gap-1">
-                            ${msg.sources.map(source => `
-                                <span class="text-xs bg-slate-700 px-2 py-1 rounded-full text-slate-300" title="${this.escapeHtml(source.snippet || '')}">
-                                    📄 ${this.escapeHtml(source.name)}
-                                </span>
-                            `).join('')}
-                        </div>
-                    </div>
-                ` : '';
-                
-                return `
-                    <div class="flex justify-start">
-                        <div class="text-slate-100 px-1 py-2 max-w-[85%] text-sm">
-                            ${this.formatMarkdown(msg.content)}
-                            ${sourcesHtml}
-                        </div>
-                    </div>
-                `;
-            }
-        }).join('');
+        container.innerHTML = this.messages.map(msg => this.formatMessage(msg)).join('');
         
         // Scroll al final
         container.scrollTop = container.scrollHeight;
@@ -586,6 +896,13 @@ class AIChatModal {
         if (window.lucide) window.lucide.createIcons();
         
         // Event listeners para botones de copiar código
+        this.attachCopyCodeListeners(container);
+    }
+    
+    /**
+     * Adjunta event listeners para botones de copiar código
+     */
+    attachCopyCodeListeners(container) {
         container.querySelectorAll('.copy-code-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -724,6 +1041,22 @@ class AIChatModal {
         div.textContent = text;
         return div.innerHTML;
     }
+
+    /**
+     * Normaliza un string para usarlo como slug
+     */
+    normalizeSlug(text) {
+        if (!text) return '';
+        return text
+            .toString()
+            .toLowerCase()
+            .trim()
+            .replace(/\s+/g, '-')           // Espacios a guiones
+            .replace(/[^\w\-]+/g, '')        // Solo alfanuméricos y guiones
+            .replace(/\-\-+/g, '-')          // Guiones múltiples a uno
+            .replace(/^-+/, '')              // Remover guiones al inicio
+            .replace(/-+$/, '');             // Remover guiones al final
+    }
     
     /**
      * Actualiza el estado del botón de enviar
@@ -746,12 +1079,48 @@ class AIChatModal {
     }
     
     /**
-     * Limpia el chat
+     * Muestra indicador visual de "pensando" junto al último mensaje del usuario
      */
-    clearChat() {
-        this.messages = [];
-        this.renderMessages();
-        this.notifications.success('Chat limpiado');
+    showThinkingIndicator() {
+        const container = this.modal.querySelector('#ai-chat-messages');
+        if (!container) return;
+
+        // Buscar el último mensaje del usuario
+        const messages = container.querySelectorAll('.flex.justify-end');
+        const lastUserMessage = messages[messages.length - 1];
+
+        if (lastUserMessage && !lastUserMessage.querySelector('.thinking-indicator')) {
+            // Crear indicador de pensamiento
+            const thinkingIndicator = document.createElement('div');
+            thinkingIndicator.className = 'thinking-indicator mr-2 opacity-80 flex-shrink-0 self-center';
+            thinkingIndicator.innerHTML = `
+                <div class="flex gap-1">
+                    <div class="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style="animation-delay: 0ms"></div>
+                    <div class="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style="animation-delay: 150ms"></div>
+                    <div class="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style="animation-delay: 300ms"></div>
+                </div>
+            `;
+
+            // Agregar al mensaje del usuario (antes del mensaje de texto)
+            const messageBubble = lastUserMessage.querySelector('.bg-slate-700, .bg-slate-100');
+            if (messageBubble) {
+                lastUserMessage.insertBefore(thinkingIndicator, messageBubble);
+            } else {
+                lastUserMessage.appendChild(thinkingIndicator);
+            }
+        }
+    }
+
+    /**
+     * Oculta el indicador de "pensando"
+     */
+    hideThinkingIndicator() {
+        const container = this.modal.querySelector('#ai-chat-messages');
+        if (!container) return;
+
+        // Buscar y remover todos los indicadores de pensamiento
+        const indicators = container.querySelectorAll('.thinking-indicator');
+        indicators.forEach(indicator => indicator.remove());
     }
 }
 

@@ -133,9 +133,19 @@ class DashboardView {
                             ${userName.charAt(0).toUpperCase()}
                         </button>
                         <div id="profile-menu" class="hidden absolute right-0 top-full mt-2 w-56 bg-slate-800 rounded-xl shadow-2xl border border-slate-700 py-2 z-50">
+                            <button id="config-credentials-menu" class="w-full px-4 py-2.5 text-left hover:bg-slate-700 transition-colors flex items-center gap-3 text-slate-200">
+                                <i data-lucide="key" class="w-4 h-4"></i>
+                                <span>Cambiar Credenciales</span>
+                            </button>
+                            <div class="border-t border-slate-700 my-1"></div>
                             <button id="config-pomodoro-menu" class="w-full px-4 py-2.5 text-left hover:bg-slate-700 transition-colors flex items-center gap-3 text-slate-200">
                                 <i data-lucide="timer" class="w-4 h-4"></i>
                                 <span>Pomodoro</span>
+                            </button>
+                            <div class="border-t border-slate-700 my-1"></div>
+                            <button id="logout-menu" class="w-full px-4 py-2.5 text-left hover:bg-red-900/50 transition-colors flex items-center gap-3 text-red-400">
+                                <i data-lucide="log-out" class="w-4 h-4"></i>
+                                <span>Cerrar Sesión</span>
                             </button>
                         </div>
                     </div>
@@ -924,6 +934,17 @@ class DashboardView {
             document.addEventListener('click', this.handleProfileMenuClose);
         }
         
+        // Cambiar Credenciales
+        const configCredentialsBtn = this.container.querySelector('#config-credentials-menu');
+        if (configCredentialsBtn) {
+            configCredentialsBtn.addEventListener('click', () => {
+                if (window.showSettingsModal) {
+                    window.showSettingsModal();
+                    profileMenu?.classList.add('hidden');
+                }
+            });
+        }
+        
         // Configurar Pomodoro
         const configPomodoroBtn = this.container.querySelector('#config-pomodoro-menu');
         if (configPomodoroBtn) {
@@ -933,6 +954,24 @@ class DashboardView {
                     profileMenu?.classList.add('hidden');
                 } else {
                     this.notifications.error('PomodoroManager no está disponible');
+                }
+            });
+        }
+        
+        // Cerrar Sesión
+        const logoutBtn = this.container.querySelector('#logout-menu');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', async () => {
+                const confirmed = await window.ConfirmModal.show({
+                    title: '¿Cerrar sesión?',
+                    message: 'Tendrás que volver a iniciar sesión para acceder a tu cuaderno.',
+                    confirmText: 'Cerrar Sesión',
+                    cancelText: 'Cancelar',
+                    type: 'warning'
+                });
+                
+                if (confirmed && window.authManager) {
+                    window.authManager.logout();
                 }
             });
         }

@@ -69,13 +69,13 @@ class ResourceManager {
     /**
      * Carga recursos para un tema específico
      */
-    loadResources(topicId) {
-        console.log('ResourceManager: Cargando recursos para tema:', topicId);
-        this.currentTopicId = topicId;
+    loadResources(subjectId) {
+        console.log('ResourceManager: Cargando recursos para materia:', subjectId);
+        this.currentTopicId = subjectId; // Aquí guardamos el ID de la materia
         
         // Asegurar que tenemos el tema actual
         if (!this.currentTopicId) {
-            console.warn('ResourceManager: No se proporcionó topicId');
+            console.warn('ResourceManager: No se proporcionó subjectId');
             return;
         }
         
@@ -169,7 +169,8 @@ class ResourceManager {
                 size: file.size,
                 mimeType: file.type,
                 data: base64Data,
-                uploadedAt: new Date().toISOString()
+                uploadedAt: new Date().toISOString(),
+                indexed: true // Por defecto, los recursos nuevos están indexados
             };
             
             // Guardar en datos
@@ -306,6 +307,15 @@ class ResourceManager {
                 if (resource) {
                     item.addEventListener('click', () => this.openResource(resource));
                     
+                    // Botón de indexación
+                    const indexBtn = item.querySelector('.index-resource-btn');
+                    if (indexBtn) {
+                        indexBtn.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            this.toggleResourceIndex(resourceId);
+                        });
+                    }
+                    
                     // Botón eliminar
                     const deleteBtn = item.querySelector('.delete-resource-btn');
                     if (deleteBtn) {
@@ -335,6 +345,12 @@ class ResourceManager {
         let previewHTML = '';
         let typeColor = '';
         let typeBadge = '';
+        
+        // Estado de indexación
+        const isIndexed = resource.indexed !== false; // Por defecto true si no está definido
+        const indexIcon = isIndexed ? 'search' : 'search-x';
+        const indexColor = isIndexed ? 'text-green-400' : 'text-red-400';
+        const indexTitle = isIndexed ? 'Indexado - Click para desindexar' : 'No indexado - Click para indexar';
         
         switch(resource.type) {
             case 'image':
@@ -400,11 +416,20 @@ class ResourceManager {
             <div class="resource-item group cursor-pointer bg-gray-700/40 hover:bg-gray-700/60 rounded-lg border border-gray-600/50 hover:border-indigo-500/50 hover:shadow-lg transition-all duration-200 relative"
                  data-resource-id="${resource.id}">
                 
-                <!-- Botón eliminar en esquina superior derecha -->
-                <button class="delete-resource-btn absolute top-2 right-2 opacity-0 group-hover:opacity-100 p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all z-10"
-                        title="Eliminar recurso">
-                    <i data-lucide="trash-2" class="w-4 h-4"></i>
-                </button>
+                <!-- Botones en esquina superior derecha -->
+                <div class="absolute top-2 right-2 flex gap-1 ">
+                    <!-- Botón de indexación -->
+                    <button class="index-resource-btn p-1.5 text-gray-400 hover:text-${isIndexed ? 'red' : 'green'}-400 hover:bg-${isIndexed ? 'red' : 'green'}-500/10 rounded-lg transition-all"
+                            title="${indexTitle}">
+                        <i data-lucide="${indexIcon}" class="w-4 h-4 ${indexColor}"></i>
+                    </button>
+                    
+                    <!-- Botón eliminar -->
+                    <button class="delete-resource-btn p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                            title="Eliminar recurso">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+                </div>
                 
                 <div class="p-3 flex items-center gap-3">
                     <!-- Icono del tipo de archivo -->
@@ -413,7 +438,7 @@ class ResourceManager {
                     </div>
                     
                     <!-- Información del recurso -->
-                    <div class="flex-1 min-w-0 pr-8">
+                    <div class="flex-1 min-w-0 pr-16">
                         <h4 class="text-sm font-semibold text-gray-100 mb-1.5 truncate" title="${resource.name}">
                             ${resource.name}
                         </h4>
@@ -422,10 +447,14 @@ class ResourceManager {
                                 ${typeBadge}
                             </span>
                             <span class="flex-shrink-0">•</span>
-                            <span class="flex-shrink-0">${size}</span>
-                            <span class="flex-shrink-0">•</span>
                             <i data-lucide="clock" class="w-3 h-3 inline flex-shrink-0"></i>
                             <span class="flex-shrink-0">${date}</span>
+                            <!-- Indicador de indexación -->
+                            <span class="flex-shrink-0">•</span>
+                            <span class="inline-flex items-center gap-1 text-xs ${isIndexed ? 'text-green-400' : 'text-red-400'} flex-shrink-0">
+                                <i data-lucide="${indexIcon}" class="w-3 h-3"></i>
+                                <span>${isIndexed ? 'Indexado' : 'No indexado'}</span>
+                            </span>
                         </div>
                     </div>
                 </div>
@@ -1229,42 +1258,70 @@ class ResourceManager {
     }
     
     /**
-     * Elimina un recurso
+     * Limpia el índice de recursos eliminados (solución en memoria)
      */
-    deleteResource(resourceId) {
-        const resources = this.dataManager.data.resources[this.currentTopicId] || [];
-        const resource = resources.find(r => r.id === resourceId);
-        
-        if (!resource) return;
-        
-        this.showConfirmModal(
-            '¿Eliminar este recurso?',
-            `Se eliminará "${resource.name}". Esta acción no se puede deshacer.`,
-            () => {
-                try {
-                    const index = resources.findIndex(r => r.id === resourceId);
-                    
-                    if (index > -1) {
-                        resources.splice(index, 1);
-                        this.dataManager.save();
-                        
-                        // Emitir evento para que otras vistas se actualicen
-                        this.dataManager.emit('resourceDeleted', { 
-                            resourceId, 
-                            topicId: this.currentTopicId 
-                        });
-                        
-                        this.renderResources();
-                        this.notifications.success('Recurso eliminado');
-                    }
-                } catch (error) {
-                    console.error('Error eliminando recurso:', error);
-                    this.notifications.error('Error al eliminar el recurso');
+    cleanIndexFromDeletedResource(deletedResource) {
+        if (!this.indexCache || this.indexCache.length === 0) {
+            return;
+        }
+
+        console.log('[DEBUG] Limpiando índice del recurso eliminado:', deletedResource.name);
+
+        // Crear un nuevo array filtrando los chunks del recurso eliminado
+        // Usamos el nombre del archivo para identificar chunks relacionados
+        const originalLength = this.indexCache.length;
+        this.indexCache = this.indexCache.filter(chunk => {
+            // Si el chunk tiene sourceName, verificar que no sea del recurso eliminado
+            if (chunk.sourceName) {
+                // Comparar nombres de archivo (ignorando extensión y mayúsculas)
+                const chunkFileName = chunk.sourceName.toLowerCase().replace(/\.[^/.]+$/, '');
+                const deletedFileName = deletedResource.name.toLowerCase().replace(/\.[^/.]+$/, '');
+
+                if (chunkFileName === deletedFileName) {
+                    console.log('[DEBUG] Removiendo chunk del índice:', chunk.sourceName);
+                    return false; // Excluir este chunk
                 }
             }
-        );
+            return true; // Mantener este chunk
+        });
+
+        const removedChunks = originalLength - this.indexCache.length;
+        console.log(`[DEBUG] Índice limpiado: ${removedChunks} chunks removidos, ${this.indexCache.length} restantes`);
+
+        // Notificar al usuario sobre la limpieza del índice
+        if (removedChunks > 0) {
+            this.notifications.info(`Índice actualizado: ${removedChunks} referencias removidas`);
+        }
     }
-    
+
+    /**
+     * Alterna el estado de indexación de un recurso
+     */
+    toggleResourceIndex(resourceId) {
+        const resources = this.dataManager.data.resources[this.currentTopicId] || [];
+        const resource = resources.find(r => r.id === resourceId);
+
+        if (!resource) return;
+
+        // Alternar estado de indexación
+        resource.indexed = resource.indexed !== false ? false : true;
+
+        // Guardar cambios
+        this.dataManager.save();
+
+        // Actualizar UI
+        this.renderResources();
+
+        // Notificar al usuario
+        const status = resource.indexed ? 'indexado' : 'desindexado';
+        this.notifications.success(`Recurso ${status}`);
+
+        // Forzar recarga del índice del chat IA para aplicar el filtro
+        if (window.app?.aiChat) {
+            window.app.aiChat.invalidateIndexCache(); // Invalidar caché completo
+        }
+    }
+
     /**
      * Muestra un modal de confirmación genérico
      */
@@ -1276,7 +1333,7 @@ class ResourceManager {
                 <div class="p-6">
                     <h3 class="text-lg font-semibold text-white mb-3">${title}</h3>
                     <p class="text-sm text-slate-300 mb-6">${message}</p>
-                    
+
                     <div class="flex justify-end gap-3">
                         <button id="cancel-confirm" class="px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
                             Cancelar
@@ -1288,12 +1345,12 @@ class ResourceManager {
                 </div>
             </div>
         `;
-        
+
         document.body.appendChild(modal);
-        
+
         const cancelBtn = modal.querySelector('#cancel-confirm');
         const acceptBtn = modal.querySelector('#accept-confirm');
-        
+
         cancelBtn.addEventListener('click', () => document.body.removeChild(modal));
         acceptBtn.addEventListener('click', () => {
             onConfirm();
@@ -1302,7 +1359,7 @@ class ResourceManager {
         modal.addEventListener('click', (e) => {
             if (e.target === modal) document.body.removeChild(modal);
         });
-        
+
         // Focus en botón cancelar por defecto
         setTimeout(() => cancelBtn.focus(), 100);
     }
