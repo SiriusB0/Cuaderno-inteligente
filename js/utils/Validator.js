@@ -93,7 +93,7 @@ class Validator {
      * Valida tipo de página
      */
     static validatePageType(type) {
-        const validTypes = ['text', 'excalidraw'];
+        const validTypes = ['text', 'excalidraw', 'code'];
         return validTypes.includes(type);
     }
     
@@ -259,10 +259,12 @@ class Validator {
         
         // Validar tipo
         if (!this.validatePageType(sanitized.type)) {
+            console.warn('⚠️ Tipo de página inválido:', sanitized.type, '- Usando "text" por defecto');
             sanitized.type = 'text';
         }
         
         // Sanitizar contenido HTML solo para páginas de texto
+        // Para 'code' y 'excalidraw', el contenido es JSON y no debe sanitizarse
         if (sanitized.type === 'text') {
             sanitized.content = this.sanitizeHTML(sanitized.content);
         }

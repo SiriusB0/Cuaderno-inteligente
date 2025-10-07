@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es" class="h-full">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -16,9 +16,50 @@
     <!-- Highlight.js para syntax highlighting -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/vs2015.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/cpp.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/java.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/csharp.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/xml.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/css.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/php.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/sql.min.js"></script>
     
     <!-- Supabase Client -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <!-- Mermaid.js - Cargar ANTES de Monaco para evitar conflictos AMD -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
+    <script>
+        // Configurar Mermaid inmediatamente
+        if (window.mermaid) {
+            mermaid.initialize({ 
+                startOnLoad: false,
+                theme: 'dark',
+                securityLevel: 'loose',
+                themeVariables: {
+                    primaryColor: '#007acc',
+                    primaryTextColor: '#fff',
+                    primaryBorderColor: '#007acc',
+                    lineColor: '#6e7681',
+                    secondaryColor: '#30363d',
+                    tertiaryColor: '#161b22',
+                    background: '#0d1117',
+                    mainBkg: '#161b22',
+                    secondBkg: '#21262d',
+                    note: '#0d1117',
+                    text: '#c9d1d9',
+                    critical: '#f85149',
+                    done: '#3fb950',
+                    activeText: '#c9d1d9'
+                }
+            });
+            console.log('✅ Mermaid cargado desde HTML y configurado');
+        }
+    </script>
+    
+    <!-- Highlight.js ya cargado arriba - NO NECESITAMOS PRISM -->
     
     <!-- Excalidraw para diagramas libres -->
     <script src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
@@ -77,20 +118,8 @@
         }
         
         .hidden { display: none !important; }
-        #dashboard-view { display: block; }
-        #subjects-view.hidden { display: none; }
-        #topics-view.hidden { display: none; }
         
         /* Vista de estudio - SIEMPRE flex cuando no está hidden */
-        #study-view {
-            display: flex !important;
-            flex-direction: column;
-            transform: scale(0.9);
-            transform-origin: top left;
-            width: 111.11%; /* 100 / 0.9 = 111.11 para compensar */
-            height: 111.11%;
-        }
-        
         #study-view.hidden {
             display: none !important;
         }
@@ -197,8 +226,9 @@
         #study-content-grid {
             display: grid !important;
             grid-template-columns: 256px 1fr 320px !important;
-            height: 100%;
-            overflow: hidden;
+            grid-template-rows: 100% !important;
+            height: 100% !important;
+            transition: grid-template-columns 0.3s ease;
         }
         
         #study-content-grid.hide-left {
@@ -210,6 +240,10 @@
         }
         
         #study-content-grid.hide-both {
+            grid-template-columns: 0 1fr 0 !important;
+        }
+        
+        #study-content-grid.hide-left.hide-right {
             grid-template-columns: 0 1fr 0 !important;
         }
         
@@ -225,27 +259,42 @@
         
         /* Sidebars con anchos FIJOS */
         #left-sidebar {
-            width: 256px !important;
-            min-width: 0 !important; /* Permite colapsar a 0 */
-            max-width: 256px !important;
-            flex-shrink: 0 !important;
-            overflow: hidden; /* Oculta contenido cuando columna es 0 */
+            width: 100% !important;
+            height: 100% !important;
+            min-width: 0 !important;
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
+            transition: opacity 0.3s ease;
         }
         
         #right-sidebar {
-            width: 320px !important;
-            min-width: 0 !important; /* Permite colapsar a 0 */
-            max-width: 320px !important;
-            flex-shrink: 0 !important;
-            overflow: hidden; /* Oculta contenido cuando columna es 0 */
+            width: 100% !important;
+            height: 100% !important;
+            min-width: 0 !important;
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
+            transition: opacity 0.3s ease;
         }
         
-        /* Los sidebars se ocultan con grid-template-columns: 0, no necesitan display: none */
+        /* Ocultar contenido cuando el grid colapsa */
+        #study-content-grid.hide-left #left-sidebar {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        #study-content-grid.hide-right #right-sidebar {
+            opacity: 0;
+            pointer-events: none;
+        }
         
         /* Área central - ocupa espacio restante */
-        main {
+        #study-content-grid > main {
             overflow: hidden !important;
             min-width: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            display: flex !important;
+            flex-direction: column !important;
         }
         
         /* Editor con límites estrictos */
@@ -341,13 +390,13 @@
             color: #e2e8f0 !important;
         }
         
-        /* Mejorar toolbar - TAMAÑO FIJO */
+        /* Mejorar toolbar - TAMAÑO COMPACTO */
         #editor-toolbar {
             background: #1e293b !important;
             border-color: #475569 !important;
-            min-height: 56px !important;
-            max-height: 56px !important;
-            height: 56px !important;
+            min-height: 48px !important;
+            max-height: 48px !important;
+            height: 48px !important;
             flex-shrink: 0 !important;
             overflow-x: auto !important;
             overflow-y: hidden !important;
@@ -578,12 +627,253 @@
                 opacity: 0.95;
             }
         }
+        
+        /* Pestaña lateral flotante - MINIMALISTA */
+        .floating-tab {
+            position: fixed;
+            right: 0;
+            z-index: 9999;
+            transition: top 0.15s ease-out;
+            pointer-events: none;
+        }
+        
+        .floating-tab-handle {
+            position: absolute;
+            right: 0;
+            top: 0;
+            width: 20px;
+            height: 50px;
+            background: rgba(100, 116, 139, 0.3);
+            border-radius: 8px 0 0 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: grab;
+            box-shadow: -2px 2px 8px rgba(0, 0, 0, 0.2);
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            color: rgba(203, 213, 225, 0.6);
+            pointer-events: auto;
+            backdrop-filter: blur(4px);
+        }
+        
+        .floating-tab-handle:hover {
+            width: 24px;
+            background: rgba(99, 102, 241, 0.4);
+            box-shadow: -3px 3px 12px rgba(0, 0, 0, 0.3);
+            color: rgba(255, 255, 255, 0.9);
+        }
+        
+        .floating-tab-handle:active {
+            cursor: grabbing;
+        }
+        
+        .floating-tab-handle i {
+            width: 14px;
+            height: 14px;
+        }
+        
+        .floating-tab-panel {
+            position: absolute;
+            right: 20px;
+            top: 0;
+            width: 220px;
+            max-height: calc(100vh - 40px);
+            background: rgba(30, 30, 30, 0.98);
+            border: 2px solid #6366f1;
+            border-radius: 8px;
+            box-shadow: -8px 8px 32px rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(10px);
+            transform: translateX(100%);
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
+            pointer-events: auto;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .floating-tab.open .floating-tab-panel {
+            transform: translateX(0);
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .floating-tab-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(99, 102, 241, 0.1);
+        }
+        
+        .floating-tab-header h4 {
+            color: #e0e0e0;
+            margin: 0;
+            font-size: 0.8rem;
+        }
+        
+        .close-tab-btn {
+            background: transparent;
+            border: none;
+            color: rgba(255, 255, 255, 0.6);
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .close-tab-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 1);
+        }
+        
+        .floating-tab-content {
+            padding: 10px;
+            overflow-y: auto;
+            flex: 1;
+            min-height: 0;
+        }
+        
+        .floating-tab-content::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .floating-tab-content::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+        }
+        
+        .floating-tab-content::-webkit-scrollbar-thumb {
+            background: rgba(99, 102, 241, 0.5);
+            border-radius: 3px;
+        }
+        
+        .tab-section {
+            margin-bottom: 12px;
+        }
+        
+        .tab-section:last-child {
+            margin-bottom: 0;
+        }
+        
+        .tab-section h5 {
+            margin: 0 0 6px 0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-size: 0.65rem;
+        }
+        
+        .tab-action-btn {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            padding: 8px 6px;
+            background: rgba(60, 60, 60, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            color: #e0e0e0;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.7rem;
+        }
+        
+        .tab-action-btn:hover {
+            background: rgba(99, 102, 241, 0.3);
+            border-color: #6366f1;
+            transform: translateY(-2px);
+        }
+        
+        .tab-action-btn-full {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 8px 10px;
+            border: none;
+            border-radius: 6px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 6px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            font-size: 0.75rem;
+        }
+        
+        .tab-action-btn-full i {
+            width: 14px;
+            height: 14px;
+        }
+        
+        .tab-action-btn-full:last-child {
+            margin-bottom: 0;
+        }
+        
+        .tab-action-btn-full:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4);
+        }
+        
+        .tab-action-btn-full span {
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        
+        .floating-tab.dragging {
+            transition: none !important;
+        }
+        
+        .floating-tab.dragging .floating-tab-handle {
+            cursor: grabbing !important;
+            box-shadow: -8px 4px 20px rgba(0, 0, 0, 0.6);
+        }
+        
+        /* Prevenir scroll horizontal y doble scroll */
+        body {
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+        
+        #study-view {
+            overflow: hidden !important;
+            height: 100vh !important;
+            display: flex !important;
+            flex-direction: column !important;
+        }
+        
+        #study-view > header {
+            flex-shrink: 0 !important;
+        }
+        
+        #study-content-grid {
+            flex: 1 !important;
+            min-height: 0 !important;
+            overflow: hidden !important;
+        }
+        
+        /* Content wrapper del editor */
+        #content-wrapper {
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
+            height: 100%;
+        }
     </style>
 </head>
-<body class="h-full bg-slate-900 text-slate-200" style="font-family: 'Inter', sans-serif;">
-    <div id="app" class="h-screen w-full">
+<body class="bg-slate-900 text-slate-200" style="font-family: 'Inter', sans-serif; margin: 0; padding: 0; height: 100vh; overflow: hidden;">
+    <div id="app" style="height: 100vh; width: 100vw; overflow: hidden;">
+        <!-- VISTA DE LOGIN -->
+        <div id="login-view" class="hidden">
+            <!-- El contenido del login se renderizará aquí -->
+        </div>
+        
         <!-- VISTA DE DASHBOARD -->
-        <div id="dashboard-view" class="p-6 md:p-8 lg:p-10 overflow-y-auto">
+        <div id="dashboard-view" class="p-6 md:p-8 lg:p-10 overflow-y-auto hidden">
             <!-- El contenido del dashboard se renderizará aquí -->
         </div>
         
@@ -622,9 +912,9 @@
         </div>
 
         <!-- VISTA DE ESTUDIO -->
-        <div id="study-view" class="hidden h-full w-full flex-col">
+        <div id="study-view" class="hidden">
             <!-- Header mejorado -->
-            <header class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 bg-white dark:bg-gray-800 gap-6">
+            <header class="flex items-center justify-between px-6 py-3 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 bg-white dark:bg-gray-800 gap-6">
                 <!-- Sección izquierda: Navegación y título -->
                 <div class="flex items-center gap-4 min-w-0 flex-shrink">
                     <button id="back-to-topics" class="p-2.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors flex-shrink-0">
@@ -637,61 +927,95 @@
                 </div>
 
                 <!-- Sección central: Widget de eventos -->
-                <div id="events-widget" class="flex-shrink-0"></div>
-                
-                <!-- Sección derecha: Carousel de botones -->
-                <div class="flex items-center gap-3 flex-shrink-0">
-                    <!-- Botón navegar carousel -->
-                    <button id="carousel-prev-btn" class="p-2.5 bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition-colors" title="Ver más opciones">
-                        <i data-lucide="chevron-left" class="w-5 h-5"></i>
-                    </button>
-                    
-                    <!-- Contenedor carousel -->
-                    <div class="overflow-hidden" style="width: 144px;">
-                        <div id="header-carousel" class="flex items-center gap-2 transition-transform duration-300">
-                            <!-- Botón Indexar Recursos (ocupa el doble de espacio) -->
-                            <button id="index-resources-btn" class="flex-shrink-0 px-3 py-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white rounded-lg transition-all flex items-center gap-2 shadow-sm" style="width: 140px;" title="Generar índice IA de recursos">
-                                <i data-lucide="database" class="w-4 h-4"></i>
-                                <span class="text-sm font-semibold">Indexar</span>
-                            </button>
-                            
-                            <!-- Botón IA Chat (ocupa el doble de espacio) -->
-                            <button id="toggle-ai-chat-btn" class="flex-shrink-0 px-3 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-lg transition-all flex items-center gap-2 shadow-sm" style="width: 140px;" title="Asistente IA">
-                                <i data-lucide="sparkles" class="w-4 h-4"></i>
-                                <span class="text-sm font-semibold">Chat IA</span>
-                            </button>
-                            
-                            <!-- Botón Pomodoro (ocupa el doble de espacio) -->
-                            <button id="start-pomodoro-btn" class="flex-shrink-0 px-3 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-lg transition-all flex items-center gap-2 shadow-sm" style="width: 140px;" title="Técnica Pomodoro">
-                                <i data-lucide="timer" class="w-4 h-4"></i>
-                                <span class="text-sm font-semibold">Pomodoro</span>
-                            </button>
-                            
-                            <!-- Grupo 1: Toggle Paneles -->
-                            <div class="flex items-center gap-2" style="width: 140px;">
-                                <button id="toggle-sidebars-btn" class="flex-shrink-0 p-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors" style="width: 36px; height: 36px;" title="Alternar paneles">
-                                    <i data-lucide="layout-panel-left" class="w-4 h-4"></i>
+                <div id="events-widget" class="flex-1 flex justify-center"></div>
+            </header>
+
+            <!-- Pestaña lateral flotante arrastrable -->
+            <div id="floating-tab" class="floating-tab" style="top: 50vh; right: 0;">
+                <div class="floating-tab-handle">
+                    <i data-lucide="menu" class="w-4 h-4"></i>
+                </div>
+                <div class="floating-tab-panel">
+                    <div class="floating-tab-header">
+                        <h4 class="text-sm font-semibold">Herramientas</h4>
+                        <button class="close-tab-btn">
+                            <i data-lucide="x" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                    <div class="floating-tab-content">
+                        <!-- Toggle Sidebars -->
+                        <div class="tab-section">
+                            <h5 class="text-xs font-semibold text-gray-500 mb-2">Paneles</h5>
+                            <div class="flex gap-2">
+                                <button id="toggle-left-sidebar-btn" class="tab-action-btn" title="Mostrar/Ocultar panel izquierdo">
+                                    <i data-lucide="panel-left" class="w-4 h-4"></i>
+                                    <span class="text-xs">Páginas</span>
                                 </button>
-                            </div>
-                            
-                            <!-- Grupo 2: Exportar PDF (solo 1 botón, centrado) -->
-                            <div class="flex items-center justify-center gap-2" style="width: 140px;">
-                                <button id="export-pdf-btn" class="flex-shrink-0 p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors" style="width: 36px; height: 36px;" title="Exportar PDF">
-                                    <i data-lucide="download" class="w-4 h-4"></i>
+                                <button id="toggle-right-sidebar-btn" class="tab-action-btn" title="Mostrar/Ocultar panel derecho">
+                                    <i data-lucide="panel-right" class="w-4 h-4"></i>
+                                    <span class="text-xs">Recursos</span>
                                 </button>
                             </div>
                         </div>
+                        
+                        <!-- Herramientas IA -->
+                        <div class="tab-section">
+                            <h5 class="text-xs font-semibold text-gray-500 mb-2">Inteligencia Artificial</h5>
+                            <button id="index-resources-btn" class="tab-action-btn-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700">
+                                <i data-lucide="database" class="w-4 h-4"></i>
+                                <span class="text-sm font-semibold">Indexar Recursos</span>
+                            </button>
+                            <button id="toggle-ai-chat-btn" class="tab-action-btn-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700">
+                                <i data-lucide="sparkles" class="w-4 h-4"></i>
+                                <span class="text-sm font-semibold">Chat IA</span>
+                            </button>
+                        </div>
+                        
+                        <!-- Productividad -->
+                        <div class="tab-section">
+                            <h5 class="text-xs font-semibold text-gray-500 mb-2">Productividad</h5>
+                            <button id="start-pomodoro-btn" class="tab-action-btn-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700">
+                                <i data-lucide="timer" class="w-4 h-4"></i>
+                                <span class="text-sm font-semibold">Pomodoro</span>
+                            </button>
+                        </div>
+                        
+                        <!-- Exportar -->
+                        <div class="tab-section">
+                            <h5 class="text-xs font-semibold text-gray-500 mb-2">Exportar</h5>
+                            <button id="export-pdf-btn" class="tab-action-btn-full bg-blue-600 hover:bg-blue-700">
+                                <i data-lucide="download" class="w-4 h-4"></i>
+                                <span class="text-sm font-semibold">Exportar PDF</span>
+                            </button>
+                        </div>
+                        
+                        <!-- Modo sin distracciones -->
+                        <div class="tab-section">
+                            <h5 class="text-xs font-semibold text-gray-500 mb-2">Vista</h5>
+                            <button id="toggle-header-btn" class="tab-action-btn-full bg-gray-600 hover:bg-gray-700">
+                                <i data-lucide="eye-off" class="w-4 h-4"></i>
+                                <span class="text-sm font-semibold">Ocultar Header</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
-            </header>
+            </div>
 
             <!-- Contenido principal con CSS Grid -->
-            <div id="study-content-grid" class="flex-1 overflow-hidden" style="display: grid; grid-template-columns: 256px 1fr 320px;">
+            <div id="study-content-grid" class="flex-1 overflow-hidden">
                 <!-- Panel de páginas -->
                 <aside id="left-sidebar" class="bg-gray-50 dark:bg-gray-800 p-4 flex flex-col border-r border-gray-200 dark:border-gray-700 overflow-hidden">
                     <div class="flex items-center justify-between mb-4">
-                        <h3 class="text-sm font-semibold">Páginas</h3>
-                        <span id="page-counter" class="text-xs text-gray-500">0/0</span>
+                        <div class="flex items-center gap-2">
+                            <h3 class="text-sm font-semibold">Páginas</h3>
+                            <span id="page-counter" class="text-xs text-gray-500">0/0</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button id="save-all-pages-btn" class="editor-btn" title="Guardar todas las páginas">
+                                <i data-lucide="save" class="w-4 h-4"></i>
+                            </button>
+                            <span id="pages-save-status" class="text-xs text-gray-500">Sin guardar</span>
+                        </div>
                     </div>
                     <div id="pages-list" class="flex-1 space-y-2 overflow-y-auto mb-4">
                         <!-- Lista de páginas -->
@@ -707,7 +1031,7 @@
                 <!-- Editor principal -->
                 <main class="flex flex-col bg-white dark:bg-gray-800 overflow-hidden">
                     <!-- Toolbar del editor -->
-                    <div id="editor-toolbar" class="p-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between relative z-0">
+                    <div id="editor-toolbar" class="p-2 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between relative z-10 flex-shrink-0 bg-white dark:bg-gray-800">
                         <div class="flex items-center gap-1 flex-wrap">
                             <!-- Formato de texto -->
                             <button class="editor-btn" data-command="bold" title="Negrita (Ctrl+B)">
@@ -819,9 +1143,6 @@
                             <button class="editor-btn" id="add-table-btn" title="Insertar tabla">
                                 <i data-lucide="table" class="w-4 h-4"></i>
                             </button>
-                            <button class="editor-btn" id="add-code-btn" title="Bloque de código">
-                                <i data-lucide="code" class="w-4 h-4"></i>
-                            </button>
                             <button class="editor-btn" id="add-quote-btn" title="Cita">
                                 <i data-lucide="quote" class="w-4 h-4"></i>
                             </button>
@@ -837,13 +1158,7 @@
                             </button>
                         </div>
                         <div class="flex items-center gap-2">
-                            <button id="toggle-header-btn" class="editor-btn focus:outline-none" title="Modo sin distracciones (ocultar header)">
-                                <i data-lucide="eye-off" class="w-4 h-4"></i>
-                            </button>
-                            <span id="save-status" class="text-sm text-gray-500">Guardado</span>
-                            <button id="save-btn" class="editor-btn" title="Guardar (Ctrl+S)">
-                                <i data-lucide="save" class="w-4 h-4"></i>
-                            </button>
+                            <!-- Botón movido al header -->
                         </div>
                     </div>
 
@@ -855,11 +1170,14 @@
                         <div id="diagram-container" class="h-full hidden">
                             <!-- Contenedor de diagramas Excalidraw -->
                         </div>
+                        <div id="code-editor-container" class="h-full hidden">
+                            <!-- Contenedor de apuntes de código -->
+                        </div>
                     </div>
                 </main>
 
                 <!-- Panel de recursos -->
-                <aside id="right-sidebar" class="bg-gray-50 dark:bg-gray-800 p-4 border-l border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden">
+                <aside id="right-sidebar" class="bg-gray-50 dark:bg-gray-800 p-4 border-l border-gray-200 dark:border-gray-700 flex flex-col">
                     <h3 class="text-sm font-semibold mb-4">Recursos</h3>
                     <div id="resource-list" class="flex-1 space-y-2 overflow-y-auto mb-4">
                         <!-- Lista de recursos -->
@@ -875,142 +1193,7 @@
         </div>
     </div>
 
-    <!-- Scripts modulares -->
-    <script type="module">
-        // Inicializar aplicación cuando el DOM esté listo
-        document.addEventListener('DOMContentLoaded', async () => {
-            try {
-                console.log('Iniciando aplicación...');
-                
-                // Importar módulos principales
-                const { default: DataManager } = await import('./js/core/DataManager.js');
-                const { default: Router } = await import('./js/core/Router.js');
-                const { default: NotificationManager } = await import('./js/components/NotificationManager.js');
-                const { default: PomodoroManager } = await import('./js/components/PomodoroManager.js');
-                const { default: QuizManager } = await import('./js/components/QuizManager.js');
-                const { default: QuizCreatorModal } = await import('./js/views/QuizCreatorModal.js');
-                const { default: QuizStudyModal } = await import('./js/views/QuizStudyModal.js');
-                const { default: DashboardView } = await import('./js/views/DashboardView.js');
-                const { default: SubjectsView } = await import('./js/views/SubjectsView.js');
-                const { default: TopicsView } = await import('./js/views/TopicsView.js');
-                const { default: StudyView } = await import('./js/views/StudyView.js');
-                
-                console.log('Módulos importados correctamente');
-                
-                // Crear instancia de la aplicación
-                class CuadernoInteligente {
-                    constructor() {
-                        this.dataManager = new DataManager();
-                        this.router = new Router();
-                        this.notifications = new NotificationManager();
-                        this.pomodoroManager = new PomodoroManager(this.dataManager, this.notifications);
-                        this.quizManager = new QuizManager(this.dataManager, this.notifications);
-                        this.views = {};
-                        
-                        // Hacer disponibles globalmente para los modales
-                        window.QuizCreatorModal = QuizCreatorModal;
-                        window.QuizStudyModal = QuizStudyModal;
-                        
-                        this.initializeViews();
-                        this.setupEventListeners();
-                        
-                        // Inicializar router (restaura estado o va a dashboard)
-                        this.router.initialize();
-                        
-                        // Inicializar iconos
-                        if (window.lucide) {
-                            window.lucide.createIcons();
-                        }
-                        
-                        // Notificación de bienvenida
-                        setTimeout(() => {
-                            this.notifications.success('Aplicación lista');
-                        }, 1000);
-                    }
-                    
-                    initializeViews() {
-                        this.views.dashboard = new DashboardView(this.dataManager, this.router, this.notifications, this.pomodoroManager, this.quizManager);
-                        this.views.subjects = new SubjectsView(this.dataManager, this.router, this.notifications);
-                        this.views.topics = new TopicsView(this.dataManager, this.router, this.notifications, this.quizManager);
-                        this.views.study = new StudyView(this.dataManager, this.router, this.notifications);
-                    }
-                    
-                    setupEventListeners() {
-                        // Navegación entre vistas
-                        this.router.on('navigationChanged', (event) => {
-                            const { to, data } = event;
-                            
-                            switch (to) {
-                                case 'dashboard':
-                                    this.views.dashboard.render();
-                                    break;
-                                case 'subjects':
-                                    this.views.subjects.render();
-                                    break;
-                                case 'topics':
-                                    this.views.topics.render(data);
-                                    break;
-                                case 'study':
-                                    this.views.study.render(data);
-                                    break;
-                            }
-                            
-                            // Actualizar iconos después de renderizar
-                            if (window.lucide) {
-                                window.lucide.createIcons();
-                            }
-                        });
-                        
-                        // Auto-guardado antes de cerrar
-                        window.addEventListener('beforeunload', () => {
-                            this.dataManager.save();
-                        });
-                        
-                        // Atajos de teclado globales
-                        document.addEventListener('keydown', (e) => {
-                            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-                                e.preventDefault();
-                                this.dataManager.save();
-                                this.notifications.success('Datos guardados');
-                            }
-                        });
-                    }
-                }
-                
-                // Crear instancia de la aplicación
-                const app = new CuadernoInteligente();
-                
-                // Hacer disponible globalmente para pruebas
-                window.app = app;
-                
-                console.log('Aplicación inicializada correctamente');
-                console.log('💡 Tip: Usa window.app para acceder a la aplicación desde la consola');
-            } catch (error) {
-                console.error('Error al inicializar la aplicación:', error);
-                
-                // Mostrar error en la página
-                const app = document.getElementById('app');
-                if (app) {
-                    app.innerHTML = `
-                        <div class="h-full flex items-center justify-center">
-                            <div class="text-center p-8">
-{{ ... }}
-                                    <svg class="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.464 0L4.35 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
-                                    </svg>
-                                </div>
-                                <h2 class="text-xl font-bold text-gray-900 mb-2">Error al cargar la aplicación</h2>
-                                <p class="text-gray-600 mb-4">Ha ocurrido un error al inicializar el Cuaderno Inteligente.</p>
-                                <p class="text-sm text-gray-500 mb-4">Error: ${error.message}</p>
-                                <button onclick="location.reload()" class="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600">
-                                    Recargar página
-                                </button>
-                            </div>
-                        </div>
-                    `;
-                }
-            }
-        });
-    </script>
+    <!-- Script principal de la aplicación -->
+    <script type="module" src="js/app.js"></script>
 </body>
 </html>

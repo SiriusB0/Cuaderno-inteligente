@@ -1,12 +1,11 @@
-/**
- * Vista de estudio - Editor principal con soporte para texto, código y diagramas Excalidraw
+﻿/**
+ * Vista de estudio - Editor principal con soporte para texto y diagramas Excalidraw
  */
 import ResourceManager from '../components/ResourceManager.js';
 import EventsManager from '../components/EventsManager.js';
 import PomodoroManager from '../components/PomodoroManager.js';
 import ExcalidrawManager from '../components/ExcalidrawManager.js';
 import AIChatModal from '../components/AIChatModal.js';
-import CodeNotesView from './CodeNotesView.js';
 
 /**
  * Vista de estudio de un tema específico
@@ -19,14 +18,12 @@ class StudyView {
         
         this.textEditor = document.getElementById('text-editor');
         this.diagramContainer = document.getElementById('diagram-container');
-        this.codeEditorContainer = document.getElementById('code-editor-container');
         
         this.currentSubject = null;
         this.currentTopic = null;
         this.pages = [];
         this.currentPageIndex = 0;
         this.autoSaveTimeout = null;
-        this.codeNotesView = null;
         
         // Timer de sesión de estudio
         this.studyTimer = null;
@@ -42,10 +39,9 @@ class StudyView {
         this.diagramManager = new ExcalidrawManager(dataManager, notifications);
         this.aiChatModal = new AIChatModal(dataManager, notifications);
         
-        // Hacer ResourceManager y AIChatModal disponibles globalmente
+        // Hacer ResourceManager disponible globalmente para los event listeners
         if (window.app) {
             window.app.resourceManager = this.resourceManager;
-            window.app.aiChatModal = this.aiChatModal;
         }
         
         // Carousel state
@@ -96,16 +92,16 @@ class StudyView {
         // Editor de texto
         if (this.textEditor) {
             this.textEditor.addEventListener('input', () => this.handleTextChange());
-            this.textEditor.addEventListener('keydown', (e) => {
-                // Atajo de teclado para código: Ctrl+Shift+C
-                if (e.ctrlKey && e.shiftKey && e.key === 'C') {
-                    e.preventDefault();
-                    this.insertCodeBlock();
-                    return;
-                }
-                this.handleKeyboard(e);
-            });
+            this.textEditor.addEventListener('keydown', (e) => this.handleKeyboard(e));
         }
+        
+        // Botón exportar PDF
+        const exportBtn = document.getElementById('export-pdf-btn');
+        if (exportBtn) {
+            exportBtn.addEventListener('click', () => this.exportToPDF());
+        }
+        
+        // Botón Pomodoro
         const pomodoroBtn = document.getElementById('start-pomodoro-btn');
         if (pomodoroBtn) {
             pomodoroBtn.addEventListener('click', () => this.startPomodoro());
@@ -123,182 +119,10 @@ class StudyView {
             aiChatBtn.addEventListener('click', () => this.toggleAIChat());
         }
         
-        // Pestaña flotante
-        this.setupFloatingTab();
-    }
-    
-    /**
-     * Configura la pestaña flotante
-     */
-    setupFloatingTab() {
-        const floatingTab = document.getElementById('floating-tab');
-        const handle = floatingTab?.querySelector('.floating-tab-handle');
-        const panel = floatingTab?.querySelector('.floating-tab-panel');
-        const closeBtn = floatingTab?.querySelector('.close-tab-btn');
-        const toggleLeftBtn = document.getElementById('toggle-left-sidebar-btn');
-        const toggleRightBtn = document.getElementById('toggle-right-sidebar-btn');
-        
-        if (!floatingTab || !handle) return;
-        
-        let isDragging = false;
-        let hasMoved = false;
-        let startY = 0;
-        let startTop = 0;
-        
-        // Toggle pestaña al hacer clic (solo si no arrastró)
-        handle.addEventListener('click', (e) => {
-            if (!hasMoved) {
-                const isOpen = floatingTab.classList.toggle('open');
-                
-                // Ajustar posición si el panel se sale del viewport
-                if (isOpen && panel) {
-                    this.adjustTabPosition(floatingTab, panel);
-                }
-                
-                // Actualizar iconos
-                setTimeout(() => {
-                    if (window.lucide) {
-                        window.lucide.createIcons();
-                    }
-                }, 100);
-            }
-        });
-        
-        // Cerrar pestaña
-        if (closeBtn) {
-            closeBtn.addEventListener('click', () => {
-                floatingTab.classList.remove('open');
-            });
-        }
-        
-        // Drag para reposicionar verticalmente
-        handle.addEventListener('mousedown', (e) => {
-            if (e.button !== 0) return;
-            
-            e.preventDefault();
-            isDragging = true;
-            hasMoved = false;
-            startY = e.clientY;
-            
-            // Obtener la posición actual correctamente
-            const currentTop = floatingTab.style.top;
-            if (currentTop && currentTop.includes('vh')) {
-                // Convertir vh a px
-                const vhValue = parseFloat(currentTop);
-                startTop = (vhValue / 100) * window.innerHeight;
-            } else {
-                startTop = parseInt(currentTop) || floatingTab.offsetTop;
-            }
-            
-            floatingTab.classList.add('dragging');
-            
-            const onMouseMove = (e) => {
-                if (!isDragging) return;
-                
-                const deltaY = e.clientY - startY;
-                if (Math.abs(deltaY) > 3) hasMoved = true;
-                
-                let newTop = startTop + deltaY;
-                
-                // Calcular límites dinámicos
-                const handleHeight = handle.offsetHeight;
-                const panelHeight = panel?.offsetHeight || 0;
-                const isOpen = floatingTab.classList.contains('open');
-                const effectiveHeight = isOpen ? Math.max(handleHeight, panelHeight) : handleHeight;
-                
-                const minTop = 20;
-                const maxTop = window.innerHeight - effectiveHeight - 20;
-                
-                newTop = Math.max(minTop, Math.min(newTop, maxTop));
-                
-                floatingTab.style.top = `${newTop}px`;
-            };
-            
-            const onMouseUp = () => {
-                isDragging = false;
-                floatingTab.classList.remove('dragging');
-                document.removeEventListener('mousemove', onMouseMove);
-                document.removeEventListener('mouseup', onMouseUp);
-                
-                // Resetear hasMoved después de un pequeño delay
-                setTimeout(() => { hasMoved = false; }, 100);
-            };
-            
-            document.addEventListener('mousemove', onMouseMove);
-            document.addEventListener('mouseup', onMouseUp);
-        });
-        
-        // Toggle sidebar izquierdo
-        if (toggleLeftBtn) {
-            toggleLeftBtn.addEventListener('click', () => {
-                this.toggleSidebar('left');
-            });
-        }
-        
-        // Toggle sidebar derecho
-        if (toggleRightBtn) {
-            toggleRightBtn.addEventListener('click', () => {
-                this.toggleSidebar('right');
-            });
-        }
-    }
-    
-    /**
-     * Ajusta la posición del tab para que siempre sea visible
-     */
-    adjustTabPosition(floatingTab, panel) {
-        const currentTop = parseInt(floatingTab.style.top) || floatingTab.offsetTop;
-        const panelHeight = panel.offsetHeight;
-        const viewportHeight = window.innerHeight;
-        
-        // Si el panel se sale por abajo, ajustar
-        if (currentTop + panelHeight > viewportHeight - 20) {
-            const newTop = Math.max(20, viewportHeight - panelHeight - 20);
-            floatingTab.style.top = `${newTop}px`;
-        }
-        
-        // Si el panel se sale por arriba, ajustar
-        if (currentTop < 20) {
-            floatingTab.style.top = '20px';
-        }
-    }
-    
-    /**
-     * Toggle de sidebars - SIMPLIFICADO
-     */
-    toggleSidebar(side) {
-        const grid = document.getElementById('study-content-grid');
-        const leftSidebar = document.getElementById('left-sidebar');
-        const rightSidebar = document.getElementById('right-sidebar');
-        
-        if (!grid || !leftSidebar || !rightSidebar) return;
-        
-        if (side === 'left') {
-            // Verificar si está visible
-            const isHidden = grid.classList.contains('hide-left');
-            
-            if (isHidden) {
-                // Mostrar
-                grid.classList.remove('hide-left');
-                this.notifications.success('Panel de páginas mostrado');
-            } else {
-                // Ocultar
-                grid.classList.add('hide-left');
-                this.notifications.success('Panel de páginas oculto');
-            }
-        } else if (side === 'right') {
-            // Verificar si está visible
-            const isHidden = grid.classList.contains('hide-right');
-            
-            if (isHidden) {
-                // Mostrar
-                grid.classList.remove('hide-right');
-                this.notifications.success('Panel de recursos mostrado');
-            } else {
-                // Ocultar
-                grid.classList.add('hide-right');
-                this.notifications.success('Panel de recursos oculto');
-            }
+        // Carousel navigation
+        const carouselPrevBtn = document.getElementById('carousel-prev-btn');
+        if (carouselPrevBtn) {
+            carouselPrevBtn.addEventListener('click', () => this.scrollCarousel());
         }
     }
     
@@ -329,8 +153,7 @@ class StudyView {
             return;
         }
         
-        // Pasar información del modo de estudio al chat IA
-        this.aiChatModal.toggle(this.currentSubject, this.currentTopic, this.studyMode);
+        this.aiChatModal.toggle(this.currentSubject, this.currentTopic);
     }
     
     /**
@@ -411,13 +234,35 @@ class StudyView {
             
             const result = await response.json();
             
-            this.notifications.success(`? Índice generado con ${result.chunks} fragmentos`);
-            this.notifications.info('?? El chat IA ya puede usar este contenido automáticamente');
+            this.notifications.success(`✅ Índice generado con ${result.chunks} fragmentos`);
+            this.notifications.info('💡 El chat IA ya puede usar este contenido automáticamente');
             
         } catch (error) {
             console.error('Error indexando recursos:', error);
             this.notifications.error(`Error: ${error.message}`);
         }
+    }
+    
+    /**
+     * Navega el carousel de botones (muestra 1 elemento a la vez)
+     * - Slide 0: Botón Indexar (140px)
+     * - Slide 1: Botón Chat IA (140px)
+     * - Slide 2: Botón Pomodoro (140px)
+     * - Slide 3: Toggle + Presentación (2 botones de 36px)
+     * - Slide 4: Exportar PDF (1 botón de 36px centrado)
+     */
+    scrollCarousel() {
+        const carousel = document.getElementById('header-carousel');
+        if (!carousel) return;
+        
+        // Total de elementos: 5 slides
+        const totalSlides = 5;
+        const slideWidth = 142; // 140px elemento + 2px gap
+        
+        this.carouselOffset = (this.carouselOffset + 1) % totalSlides;
+        const translateX = -this.carouselOffset * slideWidth;
+        
+        carousel.style.transform = `translateX(${translateX}px)`;
     }
     
     /**
@@ -520,7 +365,11 @@ class StudyView {
             tableBtn.addEventListener('click', () => this.showTableDialog());
         }
         
-        // Bloque de código removido - usar tipo CODE para código con Monaco Editor
+        // Bloque de código
+        const codeBtn = document.getElementById('add-code-btn');
+        if (codeBtn) {
+            codeBtn.addEventListener('click', () => this.insertCodeBlock());
+        }
         
         // Cita
         const quoteBtn = document.getElementById('add-quote-btn');
@@ -534,10 +383,10 @@ class StudyView {
             collapsibleBtn.addEventListener('click', () => this.insertCollapsibleBox());
         }
         
-        // Botón guardar todas las páginas
-        const saveAllPagesBtn = document.getElementById('save-all-pages-btn');
-        if (saveAllPagesBtn) {
-            saveAllPagesBtn.addEventListener('click', () => this.saveAllPages());
+        // Botón guardar
+        const saveBtn = document.getElementById('save-btn');
+        if (saveBtn) {
+            saveBtn.addEventListener('click', () => this.saveCurrentPage());
         }
     }
     
@@ -611,10 +460,6 @@ class StudyView {
         
         this.currentSubject = subject;
         this.currentTopic = topic;
-        this.studyMode = data.studyMode || 'subject'; // Guardar modo de estudio
-        
-        // Guardar último tema visitado por materia
-        this.saveLastVisitedTopic(subject.id, topic.id);
         
         this.container = document.getElementById('study-view');
         this.pagesList = document.getElementById('pages-list');
@@ -641,11 +486,9 @@ class StudyView {
             this.eventsManager.loadEvents(this.currentSubject.id);
         }
         
-        // Inicializar ResourceManager
-        // Los recursos SIEMPRE son por materia, no por tema
-        this.resourceManager.loadResources(this.currentSubject.id, this.currentTopic.id);
-        console.log('Cargando recursos de la materia:', this.currentSubject.name);
-        console.log('Tema actual:', this.currentTopic.name);
+        // Inicializar ResourceManager para la MATERIA (no el tema)
+        // Los recursos son por materia, no por tema individual
+        this.resourceManager.loadResources(this.currentSubject.id);
         
         // Inicializar o continuar sesión de estudio
         this.initializeStudySession();
@@ -734,11 +577,11 @@ class StudyView {
                         <i data-lucide="trash-2" class="w-3 h-3"></i>
                     </button>
                 </div>
-                <h4 class="page-title text-sm font-medium line-clamp-1 mb-1" 
+                <h4 class="page-title text-sm font-medium line-clamp-1 mb-1 cursor-text" 
                    data-page-index="${index}" 
-                   title="${page.title || 'Sin título'}">${page.title || 'Sin título'}</h4>
-                <p class="page-description text-xs text-gray-500 dark:text-gray-400 line-clamp-2">
-                    ${page.description || 'Sin descripción'}
+                   title="Doble clic para editar">${page.title || `Página ${index + 1}`}</h4>
+                <p class="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">
+                    ${this.getPagePreview(page)}
                 </p>
             </div>
         `).join('');
@@ -772,16 +615,16 @@ class StudyView {
                 });
             }
             
-            // Event listener para editar título y descripción (doble clic en toda la cajita)
-            thumb.addEventListener('dblclick', (e) => {
-                // No abrir modal si se hace doble clic en botones
-                if (e.target.closest('.delete-page-btn') || e.target.closest('.drag-handle')) return;
-                
-                e.preventDefault();
-                e.stopPropagation();
-                const index = parseInt(thumb.dataset.pageIndex);
-                this.editPageInfo(index);
-            });
+            // Event listener para editar título (doble clic)
+            const titleElement = thumb.querySelector('.page-title');
+            if (titleElement) {
+                titleElement.addEventListener('dblclick', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const index = parseInt(titleElement.dataset.pageIndex);
+                    this.editPageTitle(index);
+                });
+            }
             
             // Drag and drop events
             thumb.addEventListener('dragstart', (e) => {
@@ -903,45 +746,32 @@ class StudyView {
     }
     
     /**
-     * Permite editar el título y descripción de una página
+     * Permite editar el título de una página
      */
-    editPageInfo(pageIndex) {
+    editPageTitle(pageIndex) {
         if (!this.currentTopic || pageIndex < 0 || pageIndex >= this.pages.length) return;
         
         const page = this.pages[pageIndex];
-        const currentTitle = page.title || '';
-        const currentDescription = page.description || '';
+        const currentTitle = page.title || `Página ${pageIndex + 1}`;
         
         const modal = document.createElement('div');
         modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
         modal.innerHTML = `
             <div class="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md mx-4">
-                <h3 class="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Editar información de Página ${pageIndex + 1}</h3>
-                <form id="edit-page-form">
-                    <div class="mb-4">
+                <h3 class="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Editar título de página</h3>
+                <form id="edit-title-form">
+                    <div class="mb-6">
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            Título
+                            Nuevo título
                         </label>
                         <input 
                             type="text" 
                             id="new-page-title"
                             class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white"
                             value="${currentTitle}"
-                            placeholder="Título de la página"
+                            required
                             maxlength="100"
                         >
-                    </div>
-                    <div class="mb-6">
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            Descripción
-                        </label>
-                        <textarea 
-                            id="new-page-description"
-                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white resize-none"
-                            rows="3"
-                            placeholder="Descripción breve de la página"
-                            maxlength="200"
-                        >${currentDescription}</textarea>
                     </div>
                     <div class="flex justify-end space-x-3">
                         <button type="button" class="cancel-edit-btn px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200">
@@ -957,9 +787,8 @@ class StudyView {
         
         document.body.appendChild(modal);
         
-        const titleInput = modal.querySelector('#new-page-title');
-        const descriptionInput = modal.querySelector('#new-page-description');
-        const form = modal.querySelector('#edit-page-form');
+        const input = modal.getElementById('new-page-title');
+        const form = modal.getElementById('edit-title-form');
         const cancelBtn = modal.querySelector('.cancel-edit-btn');
         
         // Event listeners
@@ -978,38 +807,32 @@ class StudyView {
         form.addEventListener('submit', (e) => {
             e.preventDefault();
             
-            const newTitle = titleInput.value.trim();
-            const newDescription = descriptionInput.value.trim();
+            const newTitle = input.value.trim();
+            
+            if (!newTitle) {
+                this.notifications.error('El título no puede estar vacío');
+                return;
+            }
             
             try {
                 // Actualizar en DataManager
-                this.dataManager.updatePage(this.currentTopic.id, page.id, { 
-                    title: newTitle || 'Sin título',
-                    description: newDescription || 'Sin descripción'
-                });
+                this.dataManager.updatePage(this.currentTopic.id, page.id, { title: newTitle });
                 
                 // Recargar páginas
                 this.loadPages();
                 
-                this.notifications.success('Información actualizada');
+                this.notifications.success('Título actualizado');
                 document.body.removeChild(modal);
                 
             } catch (error) {
-                console.error('Error actualizando información:', error);
-                this.notifications.error('Error al actualizar la información');
+                console.error('Error actualizando título:', error);
+                this.notifications.error('Error al actualizar el título');
             }
         });
         
-        // Focus en el título
-        titleInput.focus();
-        titleInput.select();
-    }
-    
-    /**
-     * Permite editar el título de una página (método legacy - mantener por compatibilidad)
-     */
-    editPageTitle(pageIndex) {
-        this.editPageInfo(pageIndex);
+        // Focus y seleccionar texto
+        input.focus();
+        input.select();
     }
     
     /**
@@ -1053,31 +876,9 @@ class StudyView {
         const page = this.pages[index];
         if (!page) return;
         
-        console.log('📄 Cargando página:', { 
-            index, 
-            type: page.type, 
-            id: page.id, 
-            title: page.title,
-            contentPreview: page.content ? page.content.substring(0, 50) : 'empty'
-        });
-        
-        // VERIFICACIÓN DE EMERGENCIA: Si el contenido empieza con {"blocks", es código
-        let pageType = page.type;
-        if (!pageType && page.content && page.content.trim().startsWith('{"blocks"')) {
-            console.warn('⚠️ Tipo undefined detectado, pero contenido es JSON de código. Forzando tipo CODE');
-            pageType = 'code';
-        }
-        
-        console.log('🔍 Tipo detectado final:', pageType);
-        
-        if (pageType === 'excalidraw') {
-            console.log('🎨 Tipo: Excalidraw');
+        if (page.type === 'excalidraw') {
             this.showDiagram(page);
-        } else if (pageType === 'code') {
-            console.log('💻 Tipo: CODE - Llamando showCodeEditor()');
-            this.showCodeEditor(page);
         } else {
-            console.log('📝 Tipo: TEXT (default) - Llamando showTextEditor()');
             this.showTextEditor(page);
         }
     }
@@ -1091,17 +892,12 @@ class StudyView {
             this.diagramContainer.classList.add('hidden');
         }
         
-        // Ocultar editor de código
-        if (this.codeEditorContainer) {
-            this.codeEditorContainer.classList.add('hidden');
-        }
-        
         // Mostrar editor de texto
         if (this.textEditor) {
             this.textEditor.classList.remove('hidden');
             this.textEditor.innerHTML = page.content || '';
             
-            // ?? CRÍTICO: Inyectar estilos ANTES de reinicializar
+            // 🔥 CRÍTICO: Inyectar estilos ANTES de reinicializar
             this.injectCodeBlockStyles();
             
             // Esperar a que el DOM se actualice completamente
@@ -1125,71 +921,39 @@ class StudyView {
      * Reinicializa bloques highlight.js después de recargar
      */
     reinitializeCodeBlocks() {
-        if (!window.hljs) {
-            console.error('❌ highlight.js NO está disponible');
-            return;
-        }
+        if (!window.hljs) return;
         
         this.injectHighlightStyles();
         
         const blocks = this.textEditor.querySelectorAll('.hljs-code-block');
-        console.log(`🔄 Reinicializando ${blocks.length} bloques de código`);
         
-        blocks.forEach((block, index) => {
-            const input = block.querySelector('.code-input');
-            const highlight = block.querySelector('.code-highlight code');
+        blocks.forEach(block => {
+            const code = block.querySelector('code');
+            if (!code) return;
+            
+            // Aplicar highlight
+            hljs.highlightElement(code);
+            
             const langSelect = block.querySelector('.lang-selector');
             const copyBtn = block.querySelector('.copy-btn');
             const deleteBtn = block.querySelector('.delete-btn');
             
-            if (!input || !highlight) {
-                console.error(`❌ Bloque ${index}: Faltan elementos`, { input: !!input, highlight: !!highlight });
-                return;
-            }
-            
-            // Función render para este bloque
-            const render = () => {
-                highlight.textContent = input.value;
-                delete highlight.dataset.highlighted;
-                
-                try {
-                    hljs.highlightElement(highlight);
-                    console.log(`✅ Bloque ${index}: Highlight aplicado`);
-                } catch (e) {
-                    console.error(`❌ Bloque ${index}: Error en highlight`, e);
-                }
-            };
-            
-            // Aplicar highlight inicial
-            render();
-            
-            // Sincronizar scroll
-            input.addEventListener('scroll', () => {
-                const pre = highlight.parentElement;
-                pre.scrollTop = input.scrollTop;
-                pre.scrollLeft = input.scrollLeft;
-            });
-            
-            // Actualizar al escribir
-            input.addEventListener('input', render);
-            
-            // Cambiar lenguaje
             if (langSelect) {
                 langSelect.addEventListener('change', (e) => {
-                    highlight.className = 'language-' + e.target.value;
-                    render();
+                    code.className = e.target.value;
+                    delete code.dataset.highlighted;
+                    hljs.highlightElement(code);
+                    this.handleTextChange();
                 });
             }
             
-            // Copiar
             if (copyBtn) {
                 copyBtn.addEventListener('click', () => {
-                    navigator.clipboard.writeText(input.value);
+                    navigator.clipboard.writeText(code.textContent);
                     this.notifications.success('Copiado');
                 });
             }
             
-            // Eliminar
             if (deleteBtn) {
                 deleteBtn.addEventListener('click', () => {
                     if (confirm('¿Eliminar?')) {
@@ -1198,12 +962,9 @@ class StudyView {
                     }
                 });
             }
+            
+            code.addEventListener('input', () => this.handleTextChange());
         });
-        
-        // Actualizar iconos de Lucide
-        if (window.lucide) {
-            window.lucide.createIcons();
-        }
     }
     
     /**
@@ -1582,11 +1343,6 @@ class StudyView {
         if (this.textEditor) {
             this.textEditor.classList.add('hidden');
         }
-        
-        // Ocultar editor de código
-        if (this.codeEditorContainer) {
-            this.codeEditorContainer.classList.add('hidden');
-        }
 
         // Ocultar toolbar del editor de texto
         const toolbar = document.getElementById('editor-toolbar');
@@ -1612,62 +1368,15 @@ class StudyView {
     }
     
     /**
-     * Muestra el editor de código (CodeNotesView)
-     */
-    showCodeEditor(page) {
-        console.log('🔵 Mostrando editor de código para página:', page);
-        
-        // Ocultar editor de texto
-        if (this.textEditor) {
-            this.textEditor.classList.add('hidden');
-        }
-        
-        // Ocultar diagrama
-        if (this.diagramContainer) {
-            this.diagramContainer.classList.add('hidden');
-        }
-        
-        // Ocultar toolbar del editor de texto
-        const toolbar = document.getElementById('editor-toolbar');
-        if (toolbar) {
-            toolbar.classList.add('hidden');
-        }
-        
-        // Mostrar contenedor de código
-        if (!this.codeEditorContainer) {
-            console.error('❌ codeEditorContainer no existe en el DOM');
-            this.notifications.error('Error: Contenedor de código no encontrado');
-            return;
-        }
-        
-        this.codeEditorContainer.classList.remove('hidden');
-        console.log('✅ Contenedor de código visible');
-        
-        // Inicializar CodeNotesView si no existe
-        if (!this.codeNotesView) {
-            console.log('🔧 Inicializando CodeNotesView...');
-            this.codeNotesView = new CodeNotesView(
-                this.codeEditorContainer, 
-                this.notifications,
-                () => this.handleTextChange() // Callback para auto-guardado
-            );
-        }
-        
-        // Renderizar contenido
-        console.log('📝 Renderizando contenido:', page.content);
-        this.codeNotesView.render(page.content);
-    }
-    
-    /**
      * Muestra modal para seleccionar tipo de página
      */
     showPageTypeModal() {
         const modal = document.createElement('div');
         modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
         modal.innerHTML = `
-            <div class="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-2xl mx-4">
+            <div class="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md mx-4">
                 <h3 class="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Seleccionar tipo de página</h3>
-                <div class="grid grid-cols-3 gap-4 mb-6">
+                <div class="grid grid-cols-2 gap-4 mb-6">
                     <button type="button" class="page-type-btn p-6 border-2 border-gray-200 dark:border-gray-600 rounded-lg hover:border-indigo-500 transition-colors" data-type="text">
                         <div class="flex flex-col items-center">
                             <i data-lucide="file-text" class="w-12 h-12 text-blue-500 mb-3"></i>
@@ -1675,17 +1384,10 @@ class StudyView {
                             <span class="text-xs text-gray-500 mt-1">Editor de texto rico</span>
                         </div>
                     </button>
-                    <button type="button" class="page-type-btn p-6 border-2 border-gray-200 dark:border-gray-600 rounded-lg hover:border-indigo-500 transition-colors" data-type="code">
-                        <div class="flex flex-col items-center">
-                            <i data-lucide="code-2" class="w-12 h-12 text-green-500 mb-3"></i>
-                            <span class="text-sm font-medium">Apuntes de Código</span>
-                            <span class="text-xs text-gray-500 mt-1">Editor con syntax highlighting</span>
-                        </div>
-                    </button>
                     <button type="button" class="page-type-btn p-6 border-2 border-gray-200 dark:border-gray-600 rounded-lg hover:border-indigo-500 transition-colors" data-type="excalidraw">
                         <div class="flex flex-col items-center">
                             <i data-lucide="lightbulb" class="w-12 h-12 text-purple-500 mb-3"></i>
-                            <span class="text-sm font-medium">Página de ideas</span>
+                            <span class="text-sm font-medium">Página de Ideas</span>
                             <span class="text-xs text-gray-500 mt-1">Diagramas y mapas mentales</span>
                         </div>
                     </button>
@@ -1736,14 +1438,7 @@ class StudyView {
         if (!this.currentTopic) return;
         
         const pageNumber = this.pages.length + 1;
-        let title;
-        if (type === 'excalidraw') {
-            title = `Ideas ${pageNumber}`;
-        } else if (type === 'code') {
-            title = `Código ${pageNumber}`;
-        } else {
-            title = `Página Nueva ${pageNumber}`;
-        }
+        const title = type === 'excalidraw' ? `Ideas ${pageNumber}` : `Página Nueva ${pageNumber}`;
         
         this.createPageWithTitle(type, title);
     }
@@ -1754,43 +1449,17 @@ class StudyView {
     createPageWithTitle(type, title) {
         if (!this.currentTopic) return;
         
-        console.log('🆕 Creando nueva página:', { type, title });
-        
-        let content;
-        if (type === 'excalidraw') {
-            content = '{}';
-        } else if (type === 'code') {
-            content = JSON.stringify({
-                blocks: [
-                    {
-                        id: Date.now(),
-                        type: 'markdown',
-                        content: ''
-                    }
-                ]
-            });
-            console.log('✅ Contenido JSON para código creado');
-        } else {
-            content = `<h1>${title}</h1><p>Contenido de la página...</p>`;
-        }
-        
         const pageData = {
             type,
             title,
-            content
+            content: type === 'excalidraw' ? '{}' : `<h1>${title}</h1><p>Contenido de la página...</p>`
         };
-        
-        console.log('📦 pageData:', pageData);
         
         try {
             const page = this.dataManager.createPage(this.currentTopic.id, pageData);
-            console.log('✅ Página creada en DataManager:', page);
             
             // Recargar páginas desde DataManager para evitar duplicados
             this.loadPages();
-            
-            console.log('📄 Total de páginas después de crear:', this.pages.length);
-            console.log('📄 Páginas:', this.pages.map(p => ({ type: p.type, title: p.title })));
             
             // Cambiar a la nueva página (será la última)
             this.switchToPage(this.pages.length - 1);
@@ -1937,7 +1606,7 @@ class StudyView {
      * Maneja cambios en el editor de texto
      */
     handleTextChange() {
-        this.updatePagesSaveStatus('unsaved');
+        this.updateSaveStatus('unsaved');
         
         // Auto-guardar
         clearTimeout(this.autoSaveTimeout);
@@ -1979,7 +1648,7 @@ class StudyView {
         const currentPage = this.pages[this.currentPageIndex];
         if (!currentPage) return;
         
-        this.updatePagesSaveStatus('saving');
+        this.updateSaveStatus('saving');
         
         try {
             // Obtener contenido según el tipo
@@ -1990,12 +1659,6 @@ class StudyView {
             } else if (currentPage.type === 'excalidraw' && this.diagramManager) {
                 // Guardar diagrama Excalidraw
                 content = await this.diagramManager.getDiagramJSON();
-            } else if (currentPage.type === 'code' && this.codeNotesView) {
-                // Guardar apuntes de código
-                content = this.codeNotesView.getContent();
-            } else if (currentPage.type === 'mindmap' && this.mindmapView) {
-                // Guardar mapa mental
-                content = this.mindmapView.getContent();
             }
             
             // Actualizar página
@@ -2003,90 +1666,40 @@ class StudyView {
                 content: content
             });
             
-            this.updatePagesSaveStatus('saved');
+            this.updateSaveStatus('saved');
             
         } catch (error) {
             console.error('Error guardando página:', error);
-            this.updatePagesSaveStatus('error');
+            this.updateSaveStatus('error');
             this.notifications.error('Error al guardar la página');
         }
     }
     
     /**
-     * Guarda todas las páginas del tema actual
+     * Actualiza el estado de guardado
      */
-    async saveAllPages() {
-        if (!this.currentTopic || this.pages.length === 0) return;
-        
-        this.updatePagesSaveStatus('saving');
-        
-        try {
-            // Primero guardar la página actual
-            await this.saveCurrentPage();
-            
-            // Luego guardar todas las demás páginas que tengan contenido cargado
-            const savePromises = [];
-            
-            for (let i = 0; i < this.pages.length; i++) {
-                if (i === this.currentPageIndex) continue; // Ya guardamos la actual
-                
-                const page = this.pages[i];
-                if (page && page.content) {
-                    // Solo guardar si la página tiene contenido
-                    savePromises.push(
-                        this.dataManager.updatePage(this.currentTopic.id, page.id, {
-                            content: page.content
-                        })
-                    );
-                }
-            }
-            
-            await Promise.all(savePromises);
-            
-            this.updatePagesSaveStatus('saved');
-            this.notifications.success(`✅ ${this.pages.length} páginas guardadas`);
-            
-        } catch (error) {
-            console.error('Error guardando todas las páginas:', error);
-            this.updatePagesSaveStatus('error');
-            this.notifications.error('Error al guardar las páginas');
-        }
-    }
-    
-    /**
-     * Actualiza el estado de guardado de todas las páginas
-     */
-    updatePagesSaveStatus(status) {
-        const saveStatus = document.getElementById('pages-save-status');
+    updateSaveStatus(status) {
+        const saveStatus = document.getElementById('save-status');
         if (!saveStatus) return;
         
         switch (status) {
             case 'saving':
                 saveStatus.textContent = 'Guardando...';
-                saveStatus.className = 'text-xs text-yellow-500';
+                saveStatus.className = 'text-sm text-yellow-500';
                 break;
             case 'saved':
                 saveStatus.textContent = 'Guardado';
-                saveStatus.className = 'text-xs text-green-500';
+                saveStatus.className = 'text-sm text-green-500';
                 break;
             case 'unsaved':
                 saveStatus.textContent = 'Sin guardar';
-                saveStatus.className = 'text-xs text-gray-500';
+                saveStatus.className = 'text-sm text-gray-500';
                 break;
             case 'error':
                 saveStatus.textContent = 'Error';
-                saveStatus.className = 'text-xs text-red-500';
+                saveStatus.className = 'text-sm text-red-500';
                 break;
         }
-    }
-    
-    /**
-     * Actualiza el estado de guardado (método legacy - ya no se usa)
-     */
-    updateSaveStatus(status) {
-        // Este método se mantiene por compatibilidad pero ya no tiene elemento en el DOM
-        // El estado de guardado ahora se maneja con updatePagesSaveStatus
-        return;
     }
     
     /**
@@ -2140,7 +1753,7 @@ class StudyView {
                 
                 <div class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                     <p class="text-sm text-blue-800 dark:text-blue-200">
-                        <strong>?? Dimensiones óptimas:</strong><br>
+                        <strong>📐 Dimensiones óptimas:</strong><br>
                         • Imágenes en editor: <strong>1200x800px</strong> (horizontal)
                     </p>
                 </div>
@@ -2706,7 +2319,7 @@ class StudyView {
                                    !img.src.startsWith(window.location.origin);
             
             if (isExternalImage) {
-                alert('?? No se puede recortar esta imagen debido a restricciones de seguridad del navegador (CORS).\n\n?? Solución: Sube la imagen desde tu computadora en lugar de usar una URL externa.');
+                alert('⚠️ No se puede recortar esta imagen debido a restricciones de seguridad del navegador (CORS).\n\n💡 Solución: Sube la imagen desde tu computadora en lugar de usar una URL externa.');
             } else {
                 alert('No se pudo cargar la imagen para recortar.');
             }
@@ -3590,100 +3203,75 @@ class StudyView {
     
     
     /**
-     * ? NUEVO: Inserta bloque de código con CodeMirror estilo VSCode Dark
+     * ✨ NUEVO: Inserta bloque de código con CodeMirror estilo VSCode Dark
      * Permite seleccionar el lenguaje dinámicamente y cambiar el resaltado de sintaxis
      */
-    insertCodeBlock() {
-    const blockId = `code-block-${Date.now()}`;
+    insertCodeBlock() { const blockId = code-block-; const html = <div class=" hljs-code-block\ id=\\ contenteditable=\false\><div class=\code-header\><select class=\lang-selector\><option value=\cpp\>C++</option><option value=\javascript\>JavaScript</option><option value=\python\>Python</option><option value=\java\>Java</option><option value=\csharp\>C#</option><option value=\xml\>HTML</option><option value=\css\>CSS</option><option value=\php\>PHP</option><option value=\sql\>SQL</option></select><button class=\copy-btn\><i data-lucide=\copy\ class=\w-4 h-4\></i></button><button class=\delete-btn\><i data-lucide=\trash-2\ class=\w-4 h-4\></i></button></div><div class=\code-display\><textarea class=\code-input\ spellcheck=\false\ placeholder=\Escribe tu c�digo...\></textarea><pre class=\code-highlight\><code class=\cpp\></code></pre></div></div><p><br></p>; this.insertHTML(html); this.injectWorkingCodeStyles(); setTimeout(() => { const block = document.getElementById(blockId); if (!block) return; const input = block.querySelector(\.code-input\); const highlight = block.querySelector(\.code-highlight code\); const langSelect = block.querySelector(\.lang-selector\); const copyBtn = block.querySelector(\.copy-btn\); const deleteBtn = block.querySelector(\.delete-btn\); const render = () => { highlight.textContent = input.value; delete highlight.dataset.highlighted; if (window.hljs) hljs.highlightElement(highlight); this.handleTextChange(); }; input.addEventListener(\scroll\, () => { const pre = highlight.parentElement; pre.scrollTop = input.scrollTop; pre.scrollLeft = input.scrollLeft; }); input.addEventListener(\input\, render); langSelect.addEventListener(\change\, (e) => { highlight.className = e.target.value; render(); }); copyBtn.addEventListener(\click\, () => { navigator.clipboard.writeText(input.value); this.notifications.success(\Copiado\); }); deleteBtn.addEventListener(\click\, () => { if (confirm(\Eliminar?\)) { block.remove(); this.handleTextChange(); } }); render(); if (window.lucide) window.lucide.createIcons(); }, 100); }
     
-    const html = `
-        <div class="hljs-code-block" id="${blockId}" contenteditable="false">
-            <div class="code-header">
-                <select class="lang-selector">
-                    <option value="cpp">C++</option>
-                    <option value="javascript">JavaScript</option>
-                    <option value="python">Python</option>
-                    <option value="java">Java</option>
-                    <option value="csharp">C#</option>
-                    <option value="xml">HTML</option>
-                    <option value="css">CSS</option>
-                    <option value="php">PHP</option>
-                    <option value="sql">SQL</option>
-                </select>
-                <button class="copy-btn"><i data-lucide="copy" class="w-4 h-4"></i></button>
-                <button class="delete-btn"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-            </div>
-            <div class="code-display">
-                <textarea class="code-input" spellcheck="false" placeholder="Escribe tu código..."></textarea>
-                <pre class="code-highlight"><code class="language-cpp"></code></pre>
-            </div>
-        </div>
-        <p><br></p>
-    `;
-
-    this.insertHTML(html);
-    this.injectWorkingCodeStyles();
-    
-    setTimeout(() => {
-        const block = document.getElementById(blockId);
-        if (!block) return;
+    /**
+     * Inyecta estilos para highlight.js
+     */
+    injectHighlightStyles() {
+        if (document.getElementById('hljs-custom-styles')) return;
         
-        const input = block.querySelector('.code-input');
-        const highlight = block.querySelector('.code-highlight code');
-        const langSelect = block.querySelector('.lang-selector');
-        const copyBtn = block.querySelector('.copy-btn');
-        const deleteBtn = block.querySelector('.delete-btn');
-        
-        const render = () => {
-            highlight.textContent = input.value;
-            delete highlight.dataset.highlighted;
-            
-            // FORZAR highlight.js
-            if (window.hljs) {
-                try {
-                    hljs.highlightElement(highlight);
-                    console.log('✅ Highlight aplicado correctamente');
-                } catch (e) {
-                    console.error('❌ Error en highlight.js:', e);
-                }
-            } else {
-                console.error('❌ highlight.js NO está cargado');
+        const styleTag = document.createElement('style');
+        styleTag.id = 'hljs-custom-styles';
+        styleTag.textContent = `
+            .hljs-code-block {
+                margin: 1rem 0;
+                border-radius: 8px;
+                overflow: hidden;
+                background: #1e1e1e;
+                border: 1px solid #333;
             }
-            
-            this.handleTextChange();
-        };
-        
-        input.addEventListener('scroll', () => {
-            const pre = highlight.parentElement;
-            pre.scrollTop = input.scrollTop;
-            pre.scrollLeft = input.scrollLeft;
-        });
-        
-        input.addEventListener('input', render);
-        
-        langSelect.addEventListener('change', (e) => {
-            highlight.className = 'language-' + e.target.value;
-            render();
-        });
-        
-        copyBtn.addEventListener('click', () => {
-            navigator.clipboard.writeText(input.value);
-            this.notifications.success('Copiado');
-        });
-        
-        deleteBtn.addEventListener('click', () => {
-            if (confirm('Â¿Eliminar?')) {
-                block.remove();
-                this.handleTextChange();
+            .hljs-code-block .code-header {
+                display: flex;
+                gap: 0.5rem;
+                padding: 0.5rem 1rem;
+                background: #252526;
+                border-bottom: 1px solid #333;
             }
-        });
-        
-        render();
-        
-        if (window.lucide) window.lucide.createIcons();
-    }, 100);
-}
-    
+            .hljs-code-block .lang-selector {
+                padding: 0.25rem 0.5rem;
+                background: #3c3c3c;
+                color: #d4d4d4;
+                border: 1px solid #555;
+                border-radius: 4px;
+                font-size: 0.875rem;
+            }
+            .hljs-code-block .copy-btn, .hljs-code-block .delete-btn {
+                padding: 0.25rem;
+                background: transparent;
+                color: #9ca3af;
+                border: none;
+                cursor: pointer;
+                border-radius: 4px;
+            }
+            .hljs-code-block .copy-btn:hover, .hljs-code-block .delete-btn:hover {
+                background: #3c3c3c;
+                color: #fff;
+            }
+            .hljs-code-block pre {
+                margin: 0 !important;
+                background: #1e1e1e !important;
+                padding: 1rem !important;
+                min-height: 200px;
+            }
+            .hljs-code-block code {
+                font-family: 'Consolas', 'Monaco', monospace !important;
+                font-size: 14px !important;
+                line-height: 1.5 !important;
+                display: block !important;
+                white-space: pre !important;
+                outline: none !important;
+            }
+            .hljs-code-block code:focus {
+                outline: 2px solid #007acc !important;
+                outline-offset: 2px;
+            }
+        `;
+        document.head.appendChild(styleTag);
+    }
     
     /**
      * OBSOLETO - Función antigua de CodeMirror
@@ -3856,11 +3444,11 @@ class StudyView {
         
         const block = document.getElementById(blockId);
         if (!block) {
-            console.error(`[CodeBlock] ? Bloque ${blockId} no encontrado`);
+            console.error(`[CodeBlock] ❌ Bloque ${blockId} no encontrado`);
             return;
         }
         
-        console.log(`[CodeBlock] ? Bloque encontrado`);
+        console.log(`[CodeBlock] ✅ Bloque encontrado`);
         
         const editorContainer = block.querySelector('.code-editor-container');
         const languageSelector = block.querySelector('.code-language-selector');
@@ -3876,29 +3464,29 @@ class StudyView {
         });
         
         if (!editorContainer) {
-            console.error('[CodeBlock] ? Contenedor del editor no encontrado');
+            console.error('[CodeBlock] ❌ Contenedor del editor no encontrado');
             return;
         }
         
         if (!window.CodeMirror) {
-            console.error('[CodeBlock] ? CodeMirror no está disponible globalmente');
+            console.error('[CodeBlock] ❌ CodeMirror no está disponible globalmente');
             this.notifications.error('CodeMirror no está cargado. Recarga la página.');
             return;
         }
         
-        // ?? CRÍTICO: Extraer código existente de atributos data (si hay)
+        // 🔥 CRÍTICO: Extraer código existente de atributos data (si hay)
         let initialCode = '// Escribe tu código aquí...\n';
         let initialMode = 'javascript';
         
         // 1. Prioridad: Leer desde atributos data (más confiable)
         if (block.hasAttribute('data-code')) {
             initialCode = block.getAttribute('data-code');
-            console.log(`[CodeBlock] ?? Código recuperado de data-code: ${initialCode.substring(0, 50)}...`);
+            console.log(`[CodeBlock] 📝 Código recuperado de data-code: ${initialCode.substring(0, 50)}...`);
         }
         
         if (block.hasAttribute('data-mode')) {
             initialMode = block.getAttribute('data-mode');
-            console.log(`[CodeBlock] ?? Modo recuperado de data-mode: ${initialMode}`);
+            console.log(`[CodeBlock] 🎨 Modo recuperado de data-mode: ${initialMode}`);
         } else if (languageSelector) {
             initialMode = languageSelector.value;
         }
@@ -3911,15 +3499,15 @@ class StudyView {
         console.log(`[CodeBlock] Creando instancia de CodeMirror...`);
         console.log(`[CodeBlock] Modo inicial: ${initialMode}`);
         
-        // ?? CRÍTICO: Crear textarea primero, luego usar fromTextArea()
-        console.log('[CodeBlock] ?? Creando textarea...');
+        // 🔥 CRÍTICO: Crear textarea primero, luego usar fromTextArea()
+        console.log('[CodeBlock] 📝 Creando textarea...');
         const textarea = document.createElement('textarea');
         textarea.value = initialCode;
         editorContainer.appendChild(textarea);
-        console.log('[CodeBlock] ? Textarea creado y agregado');
+        console.log('[CodeBlock] ✅ Textarea creado y agregado');
         
         // Crear instancia de CodeMirror usando fromTextArea()
-        console.log('[CodeBlock] ?? Creando instancia CodeMirror con fromTextArea()...');
+        console.log('[CodeBlock] 🚀 Creando instancia CodeMirror con fromTextArea()...');
         try {
             const editor = CodeMirror.fromTextArea(textarea, {
                 mode: initialMode,
@@ -3945,10 +3533,10 @@ class StudyView {
                 }
             });
             
-            console.log(`[CodeBlock] ? CodeMirror creado exitosamente`);
-            console.log(`[CodeBlock] ?? Editor:`, editor);
-            console.log(`[CodeBlock] ?? Tema aplicado:`, editor.getOption('theme'));
-            console.log(`[CodeBlock] ?? Modo aplicado:`, editor.getOption('mode'));
+            console.log(`[CodeBlock] ✅ CodeMirror creado exitosamente`);
+            console.log(`[CodeBlock] 📊 Editor:`, editor);
+            console.log(`[CodeBlock] 📊 Tema aplicado:`, editor.getOption('theme'));
+            console.log(`[CodeBlock] 📊 Modo aplicado:`, editor.getOption('mode'));
             
             // Guardar referencia del editor en el bloque
             block.codeMirrorInstance = editor;
@@ -3960,7 +3548,7 @@ class StudyView {
                 editor.setOption('mode', newMode);
                 editor.refresh();
                 
-                // ?? Guardar modo en atributo data
+                // 🔥 Guardar modo en atributo data
                 block.setAttribute('data-mode', newMode);
                 this.handleTextChange();
             });
@@ -4004,7 +3592,7 @@ class StudyView {
             
             // Event listener: Guardar cambios automáticamente
             editor.on('change', () => {
-                // ?? CRÍTICO: Guardar código en atributo data para recuperación
+                // 🔥 CRÍTICO: Guardar código en atributo data para recuperación
                 const currentCode = editor.getValue();
                 const currentMode = languageSelector ? languageSelector.value : 'javascript';
                 block.setAttribute('data-code', currentCode);
@@ -4025,7 +3613,7 @@ class StudyView {
             }
             
         } catch (error) {
-            console.error('[CodeBlock] ? ERROR CRÍTICO al crear CodeMirror:');
+            console.error('[CodeBlock] ❌ ERROR CRÍTICO al crear CodeMirror:');
             console.error('[CodeBlock] Error completo:', error);
             console.error('[CodeBlock] Mensaje:', error.message);
             console.error('[CodeBlock] Stack:', error.stack);
@@ -4055,7 +3643,7 @@ class StudyView {
         try {
             document.execCommand('copy');
             const originalText = button.textContent;
-            button.textContent = '? Copiado';
+            button.textContent = '✓ Copiado';
             button.style.color = '#10b981';
 
             setTimeout(() => {
@@ -4064,7 +3652,7 @@ class StudyView {
             }, 2000);
         } catch (err) {
             console.error('Error en fallback copy:', err);
-            button.textContent = '? Error';
+            button.textContent = '✗ Error';
             setTimeout(() => {
                 button.textContent = 'Copiar';
             }, 2000);
@@ -4418,24 +4006,24 @@ class StudyView {
         
         // Estado inicial: Ambos visibles (sin clases)
         if (!hasLeft && !hasRight && !hasBoth) {
-            // Click 1: Ocultar Recursos ? Páginas + Editor
+            // Click 1: Ocultar Recursos → Páginas + Editor
             grid.classList.add('hide-right');
         }
         // Estado 1: Solo Páginas + Editor (.hide-right)
         else if (!hasLeft && hasRight && !hasBoth) {
-            // Click 2: Ocultar Páginas, mostrar Recursos ? Editor + Recursos
+            // Click 2: Ocultar Páginas, mostrar Recursos → Editor + Recursos
             grid.classList.remove('hide-right');
             grid.classList.add('hide-left');
         }
         // Estado 2: Solo Editor + Recursos (.hide-left)
         else if (hasLeft && !hasRight && !hasBoth) {
-            // Click 3: Ocultar Recursos también ? Solo Editor
+            // Click 3: Ocultar Recursos también → Solo Editor
             grid.classList.add('hide-both');
             grid.classList.remove('hide-left');
         }
         // Estado 3: Solo Editor (.hide-both)
         else if (hasBoth) {
-            // Click 4: Mostrar ambos ? Volver al inicio
+            // Click 4: Mostrar ambos → Volver al inicio
             grid.classList.remove('hide-both');
         }
     }
@@ -4718,220 +4306,8 @@ class StudyView {
         
         setTimeout(() => cancelBtn.focus(), 100);
     }
-
-
-    injectWorkingCodeStyles() {
-        if (document.getElementById('working-code-styles')) return;
-        
-        const styleTag = document.createElement('style');
-        styleTag.id = 'working-code-styles';
-        styleTag.textContent = `
-            .hljs-code-block {
-                margin: 1rem 0;
-                border-radius: 8px;
-                overflow: hidden;
-                background: #252526;
-                border: 1px solid #333;
-            }
-            
-            .hljs-code-block .code-header {
-                background: #333;
-                padding: 10px;
-                display: flex;
-                gap: 10px;
-                align-items: center;
-                border-bottom: 1px solid #444;
-            }
-            
-            .hljs-code-block .lang-selector {
-                background: #555;
-                color: white;
-                border: none;
-                padding: 5px 10px;
-                border-radius: 4px;
-                font-size: 14px;
-            }
-            
-            .hljs-code-block .copy-btn,
-            .hljs-code-block .delete-btn {
-                background: #555;
-                color: white;
-                border: none;
-                padding: 5px 10px;
-                border-radius: 4px;
-                cursor: pointer;
-            }
-            
-            .hljs-code-block .copy-btn:hover,
-            .hljs-code-block .delete-btn:hover {
-                background: #666;
-            }
-            
-            .hljs-code-block .code-display {
-                position: relative;
-                width: 100%;
-                min-height: 200px;
-                background: #1e1e1e;
-                padding: 15px;
-                box-sizing: border-box;
-            }
-            
-            .hljs-code-block .code-input {
-                position: absolute;
-                top: 1.5em;
-                left: 0;
-                width: 100%;
-                height: calc(100% - 1.5em);
-                background: transparent;
-                color: transparent;
-                caret-color: white;
-                border: none;
-                padding: 0;
-                margin: 0;
-                font-family: 'Consolas', 'Monaco', monospace;
-                font-size: 14px;
-                line-height: 1.5;
-                outline: none;
-                resize: none;
-                z-index: 2;
-                overflow: auto;
-                white-space: pre;
-                word-wrap: normal;
-                -webkit-text-fill-color: transparent;
-                box-sizing: border-box;
-            }
-            
-            .hljs-code-block .code-highlight {
-                position: absolute;
-                top: 1.5em;
-                left: 0;
-                width: 100%;
-                height: calc(100% - 1.5em);
-                padding: 0;
-                margin: 0;
-                font-family: 'Consolas', 'Monaco', monospace;
-                font-size: 14px;
-                line-height: 1.5;
-                pointer-events: none;
-                z-index: 1;
-                white-space: pre;
-                overflow: auto;
-                word-wrap: normal;
-                box-sizing: border-box;
-            }
-            
-            .hljs-code-block pre {
-                margin: 0;
-                background: transparent;
-                padding: 0;
-            }
-            
-            .hljs-code-block code {
-                font-family: 'Consolas', 'Monaco', monospace;
-                font-size: 14px;
-                line-height: 1.5;
-                display: block;
-                padding: 0;
-                margin: 0;
-            }
-            
-            .hljs-code-block pre code.hljs,
-            .hljs-code-block code.hljs {
-                padding: 0 !important;
-                margin: 0 !important;
-                font-family: 'Consolas', 'Monaco', monospace !important;
-                font-size: 14px !important;
-                line-height: 1.5 !important;
-                background: transparent !important;
-            }
-            
-            /* COLORES DE SINTAXIS - TEMA VS CODE DARK */
-            .hljs-code-block .hljs-keyword { color: #569cd6 !important; }
-            .hljs-code-block .hljs-built_in { color: #4ec9b0 !important; }
-            .hljs-code-block .hljs-type { color: #4ec9b0 !important; }
-            .hljs-code-block .hljs-literal { color: #569cd6 !important; }
-            .hljs-code-block .hljs-number { color: #b5cea8 !important; }
-            .hljs-code-block .hljs-operator { color: #d4d4d4 !important; }
-            .hljs-code-block .hljs-punctuation { color: #d4d4d4 !important; }
-            .hljs-code-block .hljs-property { color: #9cdcfe !important; }
-            .hljs-code-block .hljs-regexp { color: #d16969 !important; }
-            .hljs-code-block .hljs-string { color: #ce9178 !important; }
-            .hljs-code-block .hljs-char.escape_ { color: #d7ba7d !important; }
-            .hljs-code-block .hljs-subst { color: #d4d4d4 !important; }
-            .hljs-code-block .hljs-symbol { color: #dcdcaa !important; }
-            .hljs-code-block .hljs-variable { color: #9cdcfe !important; }
-            .hljs-code-block .hljs-variable.language_ { color: #569cd6 !important; }
-            .hljs-code-block .hljs-variable.constant_ { color: #4fc1ff !important; }
-            .hljs-code-block .hljs-title { color: #dcdcaa !important; }
-            .hljs-code-block .hljs-title.class_ { color: #4ec9b0 !important; }
-            .hljs-code-block .hljs-title.class_.inherited__ { color: #4ec9b0 !important; }
-            .hljs-code-block .hljs-title.function_ { color: #dcdcaa !important; }
-            .hljs-code-block .hljs-params { color: #9cdcfe !important; }
-            .hljs-code-block .hljs-comment { color: #6a9955 !important; font-style: italic; }
-            .hljs-code-block .hljs-doctag { color: #6a9955 !important; }
-            .hljs-code-block .hljs-meta { color: #9b9b9b !important; }
-            .hljs-code-block .hljs-meta .hljs-keyword { color: #569cd6 !important; }
-            .hljs-code-block .hljs-meta .hljs-string { color: #ce9178 !important; }
-            .hljs-code-block .hljs-section { color: #569cd6 !important; }
-            .hljs-code-block .hljs-tag { color: #569cd6 !important; }
-            .hljs-code-block .hljs-name { color: #569cd6 !important; }
-            .hljs-code-block .hljs-attr { color: #9cdcfe !important; }
-            .hljs-code-block .hljs-attribute { color: #9cdcfe !important; }
-            .hljs-code-block .hljs-bullet { color: #d4d4d4 !important; }
-            .hljs-code-block .hljs-code { color: #ce9178 !important; }
-            .hljs-code-block .hljs-emphasis { font-style: italic; }
-            .hljs-code-block .hljs-strong { font-weight: bold; }
-            .hljs-code-block .hljs-formula { color: #4ec9b0 !important; }
-            .hljs-code-block .hljs-link { color: #569cd6 !important; text-decoration: underline; }
-            .hljs-code-block .hljs-quote { color: #6a9955 !important; font-style: italic; }
-            .hljs-code-block .hljs-selector-tag { color: #569cd6 !important; }
-            .hljs-code-block .hljs-selector-id { color: #d7ba7d !important; }
-            .hljs-code-block .hljs-selector-class { color: #d7ba7d !important; }
-            .hljs-code-block .hljs-selector-attr { color: #9cdcfe !important; }
-            .hljs-code-block .hljs-selector-pseudo { color: #569cd6 !important; }
-            .hljs-code-block .hljs-template-tag { color: #569cd6 !important; }
-            .hljs-code-block .hljs-template-variable { color: #9cdcfe !important; }
-            .hljs-code-block .hljs-addition { color: #b5cea8 !important; }
-            .hljs-code-block .hljs-deletion { color: #d16969 !important; }
-        `;
-        
-        document.head.appendChild(styleTag);
-    }
-    
-    injectHighlightStyles() {
-        this.injectWorkingCodeStyles();
-    }
-    
-    /**
-     * Guarda el último tema visitado de una materia
-     */
-    saveLastVisitedTopic(subjectId, topicId) {
-        try {
-            const lastVisited = JSON.parse(localStorage.getItem('lastVisitedTopics') || '{}');
-            lastVisited[subjectId] = {
-                topicId: topicId,
-                timestamp: new Date().toISOString()
-            };
-            localStorage.setItem('lastVisitedTopics', JSON.stringify(lastVisited));
-            console.log(`💾 Último tema guardado para materia ${subjectId}: ${topicId}`);
-        } catch (error) {
-            console.error('Error guardando último tema visitado:', error);
-        }
-    }
-    
-    /**
-     * Obtiene el último tema visitado de una materia
-     */
-    static getLastVisitedTopic(subjectId) {
-        try {
-            const lastVisited = JSON.parse(localStorage.getItem('lastVisitedTopics') || '{}');
-            return lastVisited[subjectId]?.topicId || null;
-        } catch (error) {
-            console.error('Error obteniendo último tema visitado:', error);
-            return null;
-        }
-    }
 }
 
 export default StudyView;
+
 

@@ -134,6 +134,11 @@ class DashboardView {
                             J
                         </button>
                         <div id="profile-menu" class="hidden absolute right-0 top-full mt-2 w-56 bg-slate-800 rounded-xl shadow-2xl border border-slate-700 py-2 z-50">
+                            <button id="shortcuts-menu-btn" class="w-full px-4 py-2.5 text-left hover:bg-slate-700 transition-colors flex items-center gap-3 text-slate-200">
+                                <i data-lucide="keyboard" class="w-4 h-4"></i>
+                                <span>Atajos de Teclado</span>
+                            </button>
+                            <div class="border-t border-slate-700 my-1"></div>
                             <button id="config-credentials-menu" class="w-full px-4 py-2.5 text-left hover:bg-slate-700 transition-colors flex items-center gap-3 text-slate-200">
                                 <i data-lucide="key" class="w-4 h-4"></i>
                                 <span>Cambiar Credenciales</span>
@@ -483,15 +488,15 @@ class DashboardView {
             
             let dayClass = '';
             if (isToday) {
-                dayClass = 'bg-slate-500 text-white font-bold';
+                dayClass = 'bg-blue-600 text-white font-bold';
             } else if (hasEvents) {
-                dayClass = 'bg-yellow-500 text-slate-900 cursor-pointer hover:bg-yellow-400 font-semibold';
+                dayClass = 'bg-emerald-500 text-white cursor-pointer hover:bg-emerald-400 font-semibold';
             }
             
             if (hasEvents) {
                 const tooltipContent = `
                     <div class="tooltip">
-                        <h5 class="text-xs font-semibold text-yellow-300 mb-1">${day} ${monthName}</h5>
+                        <h5 class="text-xs font-semibold text-emerald-300 mb-1">${day} ${monthName}</h5>
                         <ul class="space-y-1">
                             ${dayEvents.map(e => `<li class="text-xs">• ${e.title}</li>`).join('')}
                         </ul>
@@ -701,14 +706,14 @@ class DashboardView {
             addCard.addEventListener('click', () => this.createNewSubject());
         }
         
-        // Botón añadir período
-        const addPeriodBtn = this.container.querySelector('#add-period-btn');
-        if (addPeriodBtn) {
-            addPeriodBtn.addEventListener('click', () => {
-                this.showAddPeriodModal();
+        // Atajos de teclado
+        const shortcutsMenuBtn = this.container.querySelector('#shortcuts-menu-btn');
+        if (shortcutsMenuBtn) {
+            shortcutsMenuBtn.addEventListener('click', () => {
+                this.showKeyboardShortcutsModal();
+                profileMenu?.classList.add('hidden');
             });
         }
-        
         // Botón eliminar período
         const deletePeriodBtn = this.container.querySelector('#delete-period-btn');
         if (deletePeriodBtn) {
@@ -935,6 +940,30 @@ class DashboardView {
             document.addEventListener('click', this.handleProfileMenuClose);
         }
         
+        // Toggle menú de atajos
+        const shortcutsBtn = this.container.querySelector('#shortcuts-menu-btn');
+        const shortcutsMenu = this.container.querySelector('#shortcuts-menu');
+        if (shortcutsBtn && shortcutsMenu) {
+            // Remover listeners anteriores para evitar duplicados
+            shortcutsBtn.removeEventListener('click', this.handleShortcutsMenuClick);
+            document.removeEventListener('click', this.handleShortcutsMenuClose);
+            
+            // Agregar listeners nuevos
+            this.handleShortcutsMenuClick = (e) => {
+                e.stopPropagation();
+                shortcutsMenu.classList.toggle('hidden');
+            };
+            
+            this.handleShortcutsMenuClose = (e) => {
+                if (!shortcutsMenu.contains(e.target) && e.target !== shortcutsBtn) {
+                    shortcutsMenu.classList.add('hidden');
+                }
+            };
+            
+            shortcutsBtn.addEventListener('click', this.handleShortcutsMenuClick);
+            document.addEventListener('click', this.handleShortcutsMenuClose);
+        }
+        
         // Cambiar Credenciales
         const configCredentialsBtn = this.container.querySelector('#config-credentials-menu');
         if (configCredentialsBtn) {
@@ -971,8 +1000,10 @@ class DashboardView {
                     type: 'warning'
                 });
                 
-                if (confirmed && window.authManager) {
-                    window.authManager.logout();
+                if (confirmed && window.logout) {
+                    window.logout();
+                } else if (confirmed) {
+                    this.notifications.error('Sistema de logout no disponible');
                 }
             });
         }
@@ -1533,6 +1564,70 @@ class DashboardView {
     }
     
     /**
+     * Muestra modal de atajos de teclado
+     */
+    showKeyboardShortcutsModal() {
+        const modal = document.createElement('div');
+        modal.className = 'fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4';
+        modal.innerHTML = `
+            <div class="bg-slate-800 rounded-xl w-full max-w-md shadow-2xl border border-slate-700">
+                <div class="p-6">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-12 h-12 bg-blue-500/20 rounded-full flex items-center justify-center flex-shrink-0">
+                            <i data-lucide="keyboard" class="w-6 h-6 text-blue-400"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-semibold text-white">Atajos de Teclado</h3>
+                            <p class="text-sm text-slate-400">Funciones rápidas disponibles</p>
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-3 mb-6">
+                        <div class="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg">
+                            <div class="flex items-center gap-3">
+                                <i data-lucide="sidebar" class="w-4 h-4 text-blue-400"></i>
+                                <span class="text-sm text-slate-300">Sidebar izquierdo</span>
+                            </div>
+                            <kbd class="px-2 py-1 bg-slate-700 text-slate-200 rounded text-xs">Ctrl+B</kbd>
+                        </div>
+                        
+                        <div class="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg">
+                            <div class="flex items-center gap-3">
+                                <i data-lucide="sidebar" class="w-4 h-4 text-emerald-400"></i>
+                                <span class="text-sm text-slate-300">Sidebar derecho</span>
+                            </div>
+                            <kbd class="px-2 py-1 bg-slate-700 text-slate-200 rounded text-xs">Ctrl+Shift+B</kbd>
+                        </div>
+                        
+                        <div class="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg">
+                            <div class="flex items-center gap-3">
+                                <i data-lucide="eye-off" class="w-4 h-4 text-red-400"></i>
+                                <span class="text-sm text-slate-300">Ocultar header</span>
+                            </div>
+                            <kbd class="px-2 py-1 bg-slate-700 text-slate-200 rounded text-xs">Ctrl+H</kbd>
+                        </div>
+                    </div>
+                    
+                    <button id="close-shortcuts-modal" class="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
+                        Entendido
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        const closeBtn = modal.querySelector('#close-shortcuts-modal');
+        closeBtn.addEventListener('click', () => document.body.removeChild(modal));
+        
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) document.body.removeChild(modal);
+        });
+        
+        if (window.lucide) window.lucide.createIcons();
+    }
+    
+    /**
      * Edita una materia
      */
     editSubject(subjectId) {
@@ -2004,10 +2099,10 @@ class DashboardView {
                         <div class="flex-1 h-px bg-slate-700/50"></div>
                         <div class="flex items-center gap-2">
                             <h2 class="text-sm font-semibold text-slate-300 flex items-center gap-2">
-                                <i data-lucide="brain" class="w-4 h-4 text-purple-400"></i>
+                                <i data-lucide="brain" class="w-4 h-4 text-blue-400"></i>
                                 Colecciones de Preguntas
                             </h2>
-                            <button id="create-quiz-dashboard-btn" class="px-2 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded text-xs font-medium transition-colors flex items-center gap-1">
+                            <button id="create-quiz-dashboard-btn" class="px-2 py-1 bg-slate-600 hover:bg-slate-700 text-white rounded text-xs font-medium transition-colors flex items-center gap-1">
                                 <i data-lucide="plus" class="w-3 h-3"></i>
                                 <span>Crear</span>
                             </button>
@@ -2035,9 +2130,9 @@ class DashboardView {
                     </div>
                 ` : `
                     <!-- Carrusel -->
-                    <div class="relative" style="z-index: 1;">
-                        <button id="quiz-carousel-prev" class="absolute left-0 top-1/2 -translate-y-1/2 p-1.5 bg-slate-800 hover:bg-slate-700 rounded-full shadow-md transition-colors -ml-3" style="z-index: 2;">
-                            <i data-lucide="chevron-left" class="w-4 h-4 text-white"></i>
+                    <div class="relative quiz-carousel-container" style="z-index: 1;">
+                        <button id="quiz-carousel-prev" class="absolute left-0 top-1/2 -translate-y-1/2 p-3 bg-slate-700/80 hover:bg-slate-600 rounded-full shadow-lg transition-all opacity-0 hover:opacity-100 -ml-4" style="z-index: 2;">
+                            <i data-lucide="chevron-left" class="w-6 h-6 text-white"></i>
                         </button>
                         
                         <div class="overflow-hidden">
@@ -2046,10 +2141,17 @@ class DashboardView {
                             </div>
                         </div>
                         
-                        <button id="quiz-carousel-next" class="absolute right-0 top-1/2 -translate-y-1/2 p-1.5 bg-slate-800 hover:bg-slate-700 rounded-full shadow-md transition-colors -mr-3" style="z-index: 2;">
-                            <i data-lucide="chevron-right" class="w-4 h-4 text-white"></i>
+                        <button id="quiz-carousel-next" class="absolute right-0 top-1/2 -translate-y-1/2 p-3 bg-slate-700/80 hover:bg-slate-600 rounded-full shadow-lg transition-all opacity-0 hover:opacity-100 -mr-4" style="z-index: 2;">
+                            <i data-lucide="chevron-right" class="w-6 h-6 text-white"></i>
                         </button>
                     </div>
+                    
+                    <style>
+                        .quiz-carousel-container:hover #quiz-carousel-prev,
+                        .quiz-carousel-container:hover #quiz-carousel-next {
+                            opacity: 1;
+                        }
+                    </style>
                 `}
             </div>
         `;

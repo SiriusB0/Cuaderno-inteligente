@@ -106,23 +106,25 @@ class AuthManager {
             return { success: false, error: 'Contraseña actual incorrecta' };
         }
         
-        // Valida nuevo usuario
-        if (!newUsername || newUsername.trim().length < 3) {
+        // Validar que se cambie al menos algo
+        if (!newUsername && !newPassword) {
+            return { success: false, error: 'Debes cambiar al menos el usuario o la contraseña' };
+        }
+        
+        // Valida nuevo usuario (solo si se proporciona)
+        if (newUsername && newUsername.trim().length < 3) {
             return { success: false, error: 'El usuario debe tener al menos 3 caracteres' };
         }
         
-        // Valida nueva contraseña
-        if (!newPassword || newPassword.length < 8) {
+        // Valida nueva contraseña (solo si se proporciona)
+        if (newPassword && newPassword.length < 8) {
             return { success: false, error: 'La contraseña debe tener al menos 8 caracteres' };
         }
         
-        // Genera hash de nueva contraseña
-        const newPasswordHash = await this.hashPassword(newPassword);
-        
-        // Guarda nuevas credenciales
+        // Preparar nuevas credenciales
         const newCredentials = {
-            username: newUsername.trim(),
-            passwordHash: newPasswordHash
+            username: newUsername ? newUsername.trim() : credentials.username,
+            passwordHash: newPassword ? await this.hashPassword(newPassword) : credentials.passwordHash
         };
         
         localStorage.setItem(this.CREDENTIALS_KEY, JSON.stringify(newCredentials));
@@ -440,48 +442,45 @@ function showSettingsModal() {
                         <!-- Nuevo usuario -->
                         <div>
                             <label for="new-username" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                Nuevo Usuario *
+                                Nuevo Usuario (opcional)
                             </label>
                             <input 
                                 type="text" 
                                 id="new-username" 
-                                required
                                 minlength="3"
                                 class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                                placeholder="Mínimo 3 caracteres"
+                                placeholder="Dejar vacío para mantener actual"
                             >
                             <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                Este será tu nuevo nombre de usuario para iniciar sesión
+                                Solo cambia si quieres un nuevo usuario
                             </p>
                         </div>
                         
                         <!-- Nueva contraseña -->
                         <div>
                             <label for="new-password" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                Nueva Contraseña *
+                                Nueva Contraseña (opcional)
                             </label>
                             <input 
                                 type="password" 
                                 id="new-password" 
-                                required
                                 minlength="8"
                                 class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                                placeholder="Mínimo 8 caracteres"
+                                placeholder="Dejar vacío para mantener actual"
                             >
                             <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                Usa una contraseña segura con letras, números y símbolos
+                                Solo cambia si quieres una nueva contraseña (mínimo 8 caracteres)
                             </p>
                         </div>
                         
                         <!-- Confirmar contraseña -->
-                        <div>
+                        <div id="confirm-password-container" class="hidden">
                             <label for="confirm-password" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                Confirmar Nueva Contraseña *
+                                Confirmar Nueva Contraseña
                             </label>
                             <input 
                                 type="password" 
                                 id="confirm-password" 
-                                required
                                 minlength="8"
                                 class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                                 placeholder="Repite la nueva contraseña"
@@ -565,6 +564,18 @@ function setupSettingsModalListeners() {
         }
     });
     
+    // Mostrar/ocultar confirmación de contraseña
+    const newPasswordInput = document.getElementById('new-password');
+    const confirmPasswordContainer = document.getElementById('confirm-password-container');
+    
+    newPasswordInput.addEventListener('input', () => {
+        if (newPasswordInput.value.length > 0) {
+            confirmPasswordContainer.classList.remove('hidden');
+        } else {
+            confirmPasswordContainer.classList.add('hidden');
+        }
+    });
+    
     // Submit del formulario
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -579,8 +590,15 @@ function setupSettingsModalListeners() {
         errorDiv.classList.add('hidden');
         successDiv.classList.add('hidden');
         
-        // Valida que las contraseñas coincidan
-        if (newPassword !== confirmPassword) {
+        // Validar que se cambie al menos algo
+        if (!newUsername && !newPassword) {
+            errorMessage.textContent = 'Debes cambiar al menos el usuario o la contraseña';
+            errorDiv.classList.remove('hidden');
+            return;
+        }
+        
+        // Valida que las contraseñas coincidan (solo si se ingresó nueva contraseña)
+        if (newPassword && newPassword !== confirmPassword) {
             errorMessage.textContent = 'Las contraseñas nuevas no coinciden';
             errorDiv.classList.remove('hidden');
             return;

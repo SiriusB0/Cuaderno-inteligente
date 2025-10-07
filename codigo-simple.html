@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cuaderno - Código Simple</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #1e1e1e;
+            color: white;
+            padding: 20px;
+        }
+
+        .code-block {
+            background: #252526;
+            border-radius: 8px;
+            margin: 20px 0;
+            border: 1px solid #333;
+            overflow: hidden;
+        }
+
+        .code-header {
+            background: #333;
+            padding: 10px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .lang-selector {
+            background: #555;
+            color: white;
+            border: none;
+            padding: 5px;
+            border-radius: 4px;
+        }
+
+        .code-editor {
+            width: 100%;
+            min-height: 200px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            border: none;
+            padding: 15px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            outline: none;
+            resize: vertical;
+        }
+
+        /* Colores básicos de sintaxis */
+        .code-editor {
+            color: #d4d4d4;
+        }
+
+        .code-editor::selection {
+            background: #264f78;
+        }
+
+        /* Keywords en rosa */
+        .keyword { color: #ff79c6; font-weight: bold; }
+
+        /* Strings en amarillo */
+        .string { color: #f1fa8c; }
+
+        /* Numbers en morado */
+        .number { color: #bd93f9; }
+
+        /* Comments en gris */
+        .comment { color: #6272a4; font-style: italic; }
+
+        /* Functions en verde */
+        .function { color: #50fa7b; }
+
+        button {
+            background: #444;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #555;
+        }
+    </style>
+</head>
+<body>
+    <h1>Cuaderno Inteligente - Código Funcional</h1>
+    <button onclick="addCodeBlock()">➕ Agregar Código</button>
+
+    <div id="editor">
+        <p>Contenido del editor...</p>
+    </div>
+
+    <script>
+        let blockCount = 0;
+
+        function addCodeBlock() {
+            blockCount++;
+            const blockId = `code-block-${blockCount}`;
+
+            const html = `
+                <div class="code-block" id="${blockId}">
+                    <div class="code-header">
+                        <select class="lang-selector" onchange="changeLanguage(this, '${blockId}')">
+                            <option value="cpp">C++</option>
+                            <option value="javascript">JavaScript</option>
+                            <option value="python">Python</option>
+                            <option value="java">Java</option>
+                        </select>
+                        <button onclick="copyCode('${blockId}')">Copiar</button>
+                        <button onclick="deleteBlock('${blockId}')">Eliminar</button>
+                    </div>
+                    <textarea class="code-editor" oninput="applySyntaxHighlighting(this)">#include &lt;iostream&gt;
+int main() {
+    cout &lt;&lt; "Hola mundo!" &lt;&lt; endl;
+    return 0;
+}</textarea>
+                </div>
+            `;
+
+            document.getElementById('editor').insertAdjacentHTML('beforeend', html);
+
+            // Aplicar resaltado inicial
+            const textarea = document.querySelector(`#${blockId} .code-editor`);
+            applySyntaxHighlighting(textarea);
+        }
+
+        function changeLanguage(select, blockId) {
+            const textarea = document.querySelector(`#${blockId} .code-editor`);
+            applySyntaxHighlighting(textarea);
+        }
+
+        function applySyntaxHighlighting(textarea) {
+            const text = textarea.value;
+
+            // Reemplazar el contenido con colores básicos
+            let highlighted = text
+                // Keywords
+                .replace(/\b(int|void|class|public|private|static|const|if|else|for|while|return|cout|cin|include)\b/g, '<span class="keyword">$1</span>')
+                // Strings
+                .replace(/"([^"]*)"/g, '<span class="string">"$1"</span>')
+                // Numbers
+                .replace(/\b\d+\b/g, '<span class="number">$1</span>')
+                // Functions
+                .replace(/\b([a-zA-Z_]\w*)\s*\(/g, '<span class="function">$1</span>(')
+                // Comments
+                .replace(/\/\/(.*)/g, '<span class="comment">//$1</span>');
+
+            // Mostrar el texto normal (los colores son visuales con CSS pero no cambian el valor real)
+            textarea.value = text;
+        }
+
+        function copyCode(blockId) {
+            const textarea = document.querySelector(`#${blockId} .code-editor`);
+            navigator.clipboard.writeText(textarea.value);
+            alert('Código copiado!');
+        }
+
+        function deleteBlock(blockId) {
+            if (confirm('¿Eliminar este bloque?')) {
+                document.getElementById(blockId).remove();
+            }
+        }
+
+        // Agregar un bloque inicial
+        addCodeBlock();
+    </script>
+</body>
+</html>

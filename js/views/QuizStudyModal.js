@@ -175,13 +175,26 @@ class QuizStudyModal {
 
         // Remover selección anterior
         options.forEach(opt => {
-            opt.classList.remove('border-indigo-500', 'bg-slate-900');
-            opt.classList.add('border-slate-700');
+            opt.classList.remove('border-indigo-500', 'bg-indigo-500/20', 'bg-slate-900');
+            opt.classList.add('border-slate-700', 'bg-slate-900/50');
+            // Restaurar color del círculo
+            const circle = opt.querySelector('.w-6.h-6');
+            if (circle) {
+                circle.classList.remove('bg-indigo-600');
+                circle.classList.add('bg-slate-700');
+            }
         });
 
-        // Seleccionar nueva opción
-        optionElement.classList.remove('border-slate-700');
-        optionElement.classList.add('border-indigo-500', 'bg-slate-900');
+        // Seleccionar nueva opción con fondo azul
+        optionElement.classList.remove('border-slate-700', 'bg-slate-900/50');
+        optionElement.classList.add('border-indigo-500', 'bg-indigo-500/20');
+        
+        // Cambiar color del círculo de la opción seleccionada
+        const selectedCircle = optionElement.querySelector('.w-6.h-6');
+        if (selectedCircle) {
+            selectedCircle.classList.remove('bg-slate-700');
+            selectedCircle.classList.add('bg-indigo-600');
+        }
 
         this.selectedAnswer = optionElement.dataset.option;
         confirmBtn.disabled = false;
@@ -196,7 +209,15 @@ class QuizStudyModal {
         this.hasAnswered = true;
         const modal = document.getElementById('quiz-study-modal');
         const question = this.collection.questions[this.currentQuestionIndex];
-        const isCorrect = this.selectedAnswer === question.correctAnswer;
+        
+        // Normalizar ambas respuestas a minúsculas para comparación
+        const selectedAnswerNormalized = this.selectedAnswer.toLowerCase().trim();
+        const correctAnswerNormalized = question.correctAnswer.toLowerCase().trim();
+        const isCorrect = selectedAnswerNormalized === correctAnswerNormalized;
+
+        console.log('Respuesta seleccionada:', selectedAnswerNormalized);
+        console.log('Respuesta correcta:', correctAnswerNormalized);
+        console.log('¿Es correcta?:', isCorrect);
 
         // Actualizar estadísticas
         if (isCorrect) {
@@ -208,16 +229,42 @@ class QuizStudyModal {
         // Mostrar feedback visual en las opciones
         const options = modal.querySelectorAll('.quiz-option');
         options.forEach(opt => {
-            const letter = opt.dataset.option;
+            const letter = opt.dataset.option.toLowerCase().trim();
             opt.disabled = true;
             opt.classList.remove('hover:border-indigo-500', 'hover:bg-slate-900');
 
-            if (letter === question.correctAnswer) {
-                opt.classList.remove('border-slate-700', 'border-indigo-500');
-                opt.classList.add('border-emerald-500', 'bg-emerald-900/20');
-            } else if (letter === this.selectedAnswer) {
-                opt.classList.remove('border-slate-700', 'border-indigo-500');
-                opt.classList.add('border-red-500', 'bg-red-900/20');
+            if (letter === correctAnswerNormalized) {
+                // Respuesta correcta - fondo verde
+                opt.classList.remove('border-slate-700', 'border-indigo-500', 'bg-slate-900/50');
+                opt.classList.add('border-emerald-500', 'bg-emerald-500/30');
+                // Cambiar color del círculo
+                const circle = opt.querySelector('.w-6.h-6');
+                if (circle) {
+                    circle.classList.remove('bg-slate-700');
+                    circle.classList.add('bg-emerald-600');
+                }
+                // Cambiar color del texto
+                const textSpan = opt.querySelector('span');
+                if (textSpan) {
+                    textSpan.classList.remove('text-slate-200');
+                    textSpan.classList.add('text-white');
+                }
+            } else if (letter === selectedAnswerNormalized) {
+                // Respuesta incorrecta seleccionada - fondo rojo
+                opt.classList.remove('border-slate-700', 'border-indigo-500', 'bg-slate-900/50');
+                opt.classList.add('border-red-500', 'bg-red-500/30');
+                // Cambiar color del círculo
+                const circle = opt.querySelector('.w-6.h-6');
+                if (circle) {
+                    circle.classList.remove('bg-slate-700');
+                    circle.classList.add('bg-red-600');
+                }
+                // Cambiar color del texto
+                const textSpan = opt.querySelector('span');
+                if (textSpan) {
+                    textSpan.classList.remove('text-slate-200');
+                    textSpan.classList.add('text-white');
+                }
             }
         });
 

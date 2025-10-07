@@ -1,0 +1,13 @@
+# ATAJOS DE TECLADO - CUADERNO INTELIGENTE
+# =========================================
+
+## LAYOUT
+# ------
+Ctrl + B          -> Ocultar/Mostrar sidebar izquierdo
+Ctrl + Shift + B  -> Ocultar/Mostrar sidebar derecho
+Ctrl + H          -> Ocultar/Mostrar header
+
+# =========================================
+# NOTAS:
+# - Los atajos funcionan en la vista de estudio
+# =========================================

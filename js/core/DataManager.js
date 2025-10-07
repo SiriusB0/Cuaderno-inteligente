@@ -228,20 +228,73 @@ class DataManager {
         return this.data.topics.find(t => t.id === id);
     }
     
+    /**
+     * Obtiene los subtemas de un tema padre
+     * @param {string} parentTopicId - ID del tema padre
+     * @returns {Array} Array de subtemas
+     */
+    getSubtopics(parentTopicId) {
+        return this.data.topics
+            .filter(t => t.parentTopicId === parentTopicId)
+            .sort((a, b) => (a.position || 0) - (b.position || 0));
+    }
+    
+    /**
+     * Verifica si un tema tiene subtemas
+     * @param {string} topicId - ID del tema
+     * @returns {boolean}
+     */
+    hasSubtopics(topicId) {
+        return this.data.topics.some(t => t.parentTopicId === topicId);
+    }
+    
+    /**
+     * Obtiene la jerarquía completa de un tema (padres)
+     * @param {string} topicId - ID del tema
+     * @returns {Array} Array de temas desde la raíz hasta el tema actual
+     */
+    getTopicHierarchy(topicId) {
+        const hierarchy = [];
+        let currentTopic = this.getTopic(topicId);
+        
+        while (currentTopic) {
+            hierarchy.unshift(currentTopic);
+            currentTopic = currentTopic.parentTopicId 
+                ? this.getTopic(currentTopic.parentTopicId) 
+                : null;
+        }
+        
+        return hierarchy;
+    }
+    
     createTopic(topicData) {
         try {
             // Sanitizar y validar datos
             const sanitizedData = Validator.sanitizeAndValidate(topicData, 'topic');
             
-            // Obtener la siguiente posición para este subject
-            const subjectTopics = this.getTopics(sanitizedData.subjectId);
-            const nextPosition = subjectTopics.length > 0 
-                ? Math.max(...subjectTopics.map(t => t.position || 0)) + 1 
-                : 0;
+            // Determinar si es un subtema o tema principal
+            const parentTopicId = sanitizedData.parentTopicId || null;
+            
+            // Obtener la siguiente posición
+            let nextPosition;
+            if (parentTopicId) {
+                // Es un subtema: obtener posición dentro de los subtemas del padre
+                const siblingSubtopics = this.getSubtopics(parentTopicId);
+                nextPosition = siblingSubtopics.length > 0 
+                    ? Math.max(...siblingSubtopics.map(t => t.position || 0)) + 1 
+                    : 0;
+            } else {
+                // Es tema principal: obtener posición dentro de los temas del subject
+                const subjectTopics = this.getTopics(sanitizedData.subjectId).filter(t => !t.parentTopicId);
+                nextPosition = subjectTopics.length > 0 
+                    ? Math.max(...subjectTopics.map(t => t.position || 0)) + 1 
+                    : 0;
+            }
             
             const topic = {
                 id: `topic_${Date.now()}`,
                 subjectId: sanitizedData.subjectId,
+                parentTopicId: parentTopicId, // null para temas principales, ID para subtemas
                 name: sanitizedData.name,
                 description: sanitizedData.description,
                 position: nextPosition,
@@ -250,7 +303,7 @@ class DataManager {
             
             this.data.topics.push(topic);
             
-            // Inicializar páginas para este tema
+            // Inicializar páginas para este tema/subtema
             if (!this.data.pages[topic.id]) {
                 this.data.pages[topic.id] = [];
             }

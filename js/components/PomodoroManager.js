@@ -312,18 +312,15 @@ class PomodoroManager {
         widget.id = 'pomodoro-widget';
         widget.className = 'fixed bottom-6 right-6 z-50';
         widget.innerHTML = `
-            <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl shadow-2xl border border-slate-700 p-6 min-w-[320px]">
+            <div class="bg-slate-800 rounded-xl shadow-lg border border-slate-700 p-6 min-w-[280px]">
                 <!-- Header -->
                 <div class="flex items-center justify-between mb-4">
+                    <span class="text-sm font-medium text-slate-400" id="pomodoro-mode">${this.getModeText()}</span>
                     <div class="flex items-center gap-2">
-                        <div class="w-3 h-3 rounded-full ${this.currentMode === 'work' ? 'bg-indigo-500 animate-pulse' : 'bg-emerald-500 animate-pulse'}"></div>
-                        <span class="text-sm font-medium text-slate-300" id="pomodoro-mode">${this.getModeText()}</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <button id="hide-pomodoro-widget" class="text-slate-400 hover:text-indigo-400 transition-colors" title="Ocultar (pestaña lateral)">
+                        <button id="hide-pomodoro-widget" class="text-slate-500 hover:text-slate-300 transition-colors" title="Ocultar (pestaña lateral)">
                             <i data-lucide="chevrons-right" class="w-4 h-4"></i>
                         </button>
-                        <button id="close-pomodoro-widget" class="text-slate-400 hover:text-red-400 transition-colors" title="Cerrar">
+                        <button id="close-pomodoro-widget" class="text-slate-500 hover:text-slate-300 transition-colors" title="Cerrar">
                             <i data-lucide="x" class="w-4 h-4"></i>
                         </button>
                     </div>
@@ -331,18 +328,17 @@ class PomodoroManager {
                 
                 <!-- Timer -->
                 <div class="text-center mb-6">
-                    <div class="text-5xl font-bold text-white font-mono mb-2" id="pomodoro-display">
+                    <div class="text-5xl font-bold text-slate-200 font-mono mb-2" id="pomodoro-display">
                         ${this.formatTime(this.timeRemaining)}
                     </div>
-                    <div class="flex items-center justify-center gap-2 text-xs text-slate-400">
-                        <i data-lucide="target" class="w-3 h-3"></i>
+                    <div class="text-xs text-slate-500">
                         <span id="session-counter">Sesión ${this.sessionsCompleted + 1}</span>
                     </div>
                 </div>
                 
                 <!-- Progress bar -->
-                <div class="w-full bg-slate-700 rounded-full h-2 mb-4">
-                    <div id="pomodoro-progress" class="h-2 rounded-full transition-all duration-1000 ${this.currentMode === 'work' ? 'bg-indigo-500' : 'bg-emerald-500'}" style="width: 100%"></div>
+                <div class="w-full bg-slate-700 rounded-full h-1.5 mb-4">
+                    <div id="pomodoro-progress" class="h-1.5 rounded-full transition-all duration-1000 bg-slate-500" style="width: 100%"></div>
                 </div>
                 
                 <!-- Controls -->
@@ -584,25 +580,80 @@ class PomodoroManager {
         // Crear pestaña lateral
         const tab = document.createElement('div');
         tab.id = 'pomodoro-tab';
-        tab.className = 'fixed right-0 top-1/2 -translate-y-1/2 z-50 cursor-pointer';
+        tab.style.position = 'fixed';
+        tab.style.right = '0';
+        tab.style.top = '50vh';
+        tab.style.zIndex = '50';
+        tab.style.transition = 'top 0.15s ease-out';
         tab.innerHTML = `
-            <div class="bg-gradient-to-l from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-l-xl shadow-2xl p-3 pl-4 transition-all transform hover:translate-x-[-4px]">
-                <div class="flex flex-col items-center gap-2">
-                    <i data-lucide="timer" class="w-5 h-5"></i>
-                    <div class="text-xs font-mono font-bold">${this.formatTime(this.timeRemaining)}</div>
-                    <div class="w-1 h-8 bg-white/30 rounded-full overflow-hidden">
-                        <div class="w-full ${this.currentMode === 'work' ? 'bg-indigo-300' : 'bg-emerald-300'} transition-all" style="height: ${((this.config.workTime * 60 - this.timeRemaining) / (this.config.workTime * 60)) * 100}%"></div>
-                    </div>
-                </div>
+            <div class="pomodoro-tab-handle" style="background: rgba(100, 116, 139, 0.3); backdrop-filter: blur(4px); border-radius: 8px 0 0 8px; box-shadow: -2px 2px 8px rgba(0, 0, 0, 0.2); padding: 8px 6px; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); color: rgba(203, 213, 225, 0.6); width: 20px; height: 50px; display: flex; align-items: center; justify-content: center; cursor: grab;" onmouseover="this.style.width='24px'; this.style.background='rgba(99, 102, 241, 0.4)'; this.style.boxShadow='-3px 3px 12px rgba(0, 0, 0, 0.3)'; this.style.color='rgba(255, 255, 255, 0.9)';" onmouseout="this.style.width='20px'; this.style.background='rgba(100, 116, 139, 0.3)'; this.style.boxShadow='-2px 2px 8px rgba(0, 0, 0, 0.2)'; this.style.color='rgba(203, 213, 225, 0.6)';">
+                <i data-lucide="timer" style="width: 14px; height: 14px;"></i>
             </div>
         `;
         
         document.body.appendChild(tab);
         
-        // Event listener para expandir
-        tab.addEventListener('click', () => {
-            tab.remove();
-            this.showPomodoroWidget();
+        const handle = tab.querySelector('.pomodoro-tab-handle');
+        let isDragging = false;
+        let hasMoved = false;
+        let startY = 0;
+        let startTop = 0;
+        
+        // Drag para reposicionar verticalmente
+        handle.addEventListener('mousedown', (e) => {
+            if (e.button !== 0) return;
+            
+            e.preventDefault();
+            isDragging = true;
+            hasMoved = false;
+            startY = e.clientY;
+            
+            const currentTop = tab.style.top;
+            if (currentTop && currentTop.includes('vh')) {
+                const vhValue = parseFloat(currentTop);
+                startTop = (vhValue / 100) * window.innerHeight;
+            } else {
+                startTop = parseInt(currentTop) || tab.offsetTop;
+            }
+            
+            handle.style.cursor = 'grabbing';
+            
+            const onMouseMove = (e) => {
+                if (!isDragging) return;
+                
+                const deltaY = e.clientY - startY;
+                if (Math.abs(deltaY) > 3) hasMoved = true;
+                
+                let newTop = startTop + deltaY;
+                
+                const handleHeight = handle.offsetHeight;
+                const minTop = 20;
+                const maxTop = window.innerHeight - handleHeight - 20;
+                
+                newTop = Math.max(minTop, Math.min(newTop, maxTop));
+                
+                tab.style.top = `${newTop}px`;
+            };
+            
+            const onMouseUp = () => {
+                isDragging = false;
+                handle.style.cursor = 'grab';
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+                
+                setTimeout(() => { hasMoved = false; }, 100);
+            };
+            
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+        });
+        
+        // Event listener para expandir (solo si no se arrastró)
+        handle.addEventListener('click', (e) => {
+            if (!hasMoved) {
+                tab.remove();
+                this.showPomodoroWidget();
+            }
         });
         
         // Inicializar iconos

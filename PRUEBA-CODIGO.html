@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Prueba Código con Colores</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/vs2015.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/cpp.min.js"></script>
+    <style>
+        body {
+            background: #1e1e1e;
+            color: white;
+            font-family: Arial;
+            padding: 20px;
+        }
+        .code-block {
+            background: #252526;
+            border-radius: 8px;
+        }
+        .code-header {
+            background: #333;
+            padding: 10px;
+        }
+        .code-editor {
+            width: 100%;
+            min-height: 200px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            border: none;
+            padding: 15px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            outline: none;
+            resize: vertical;
+        }
+        
+        .code-display {
+            position: relative;
+            width: 100%;
+            min-height: 200px;
+            background: #1e1e1e;
+            padding: 15px;
+            box-sizing: border-box;
+        }
+        
+        .code-input {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: transparent;
+            color: transparent;
+            caret-color: white;
+            border: none;
+            padding: 0;
+            margin: 0;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            outline: none;
+            resize: none;
+            z-index: 2;
+            overflow: auto;
+            white-space: pre;
+            word-wrap: normal;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .code-highlight {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            padding: 0;
+            margin: 0;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            pointer-events: none;
+            z-index: 1;
+            white-space: pre;
+            overflow: hidden;
+            word-wrap: normal;
+        }
+        pre {
+            margin: 0;
+            background: transparent;
+            padding: 0;
+        }
+        code {
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            display: block;
+            padding: 0;
+            margin: 0;
+        }
+        button {
+            background: #555;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #666;
+        }
+    </style>
+</head>
+<body>
+    <h1>✅ PRUEBA - Código con Colores FUNCIONANDO</h1>
+    <p>Si ves colores aquí abajo, highlight.js funciona correctamente:</p>
+
+    <div class="code-block">
+        <div class="code-header">
+            <button onclick="copyCode()">Copiar</button>
+        </div>
+        <div class="code-display">
+            <textarea class="code-input" id="codeInput" spellcheck="false" placeholder="Escribe tu código aquí..."></textarea>
+            <pre class="code-highlight"><code class="cpp" id="codeHighlight"></code></pre>
+        </div>
+    </div>
+
+    <script>
+        const input = document.getElementById('codeInput');
+        const highlight = document.getElementById('codeHighlight');
+
+        // Sincronizar scroll
+        input.addEventListener('scroll', () => {
+            highlight.parentElement.scrollTop = input.scrollTop;
+            highlight.parentElement.scrollLeft = input.scrollLeft;
+        });
+
+        // Actualizar colores al escribir
+        input.addEventListener('input', () => {
+            const code = input.value;
+            highlight.textContent = code;
+            delete highlight.dataset.highlighted;
+            hljs.highlightElement(highlight);
+        });
+
+        // Aplicar colores iniciales
+        hljs.highlightElement(highlight);
+
+        function copyCode() {
+            navigator.clipboard.writeText(input.value);
+            alert('¡Código copiado!');
+        }
+    </script>
+</body>
+</html>

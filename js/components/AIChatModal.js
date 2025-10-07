@@ -24,18 +24,30 @@ class AIChatModal {
         // URLs de Supabase (configurar con tus credenciales)
         this.SUPABASE_URL = 'https://xsumibufekrmfcenyqgq.supabase.co';
         this.SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhzdW1pYnVmZWtybWZjZW55cWdxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk0OTExOTIsImV4cCI6MjA3NTA2NzE5Mn0.x-vdT-84cEOj-5SDOVfDbgZMVVWczj8iVM0P_VoEkBc';
+        
+        // Escuchar cambios en indexación de recursos
+        window.addEventListener('resource-index-changed', (e) => {
+            console.log('[AIChatModal] Evento de cambio de indexación recibido:', e.detail);
+            this.invalidateIndexCache();
+        });
     }
     
     /**
      * Muestra el modal de chat
      */
-    show(subject, topic) {
+    show(subject, topic, studyMode = 'subject') {
         // Detectar si cambió el tema
         const topicChanged = this.currentTopic?.id !== topic?.id;
         
         this.currentSubject = subject;
         this.currentTopic = topic;
+        this.studyMode = studyMode;
+        
+        // Los recursos SIEMPRE son por MATERIA
+        // No importa si estás en un tema específico, accedes a todos los recursos de la materia
         this.currentTopicId = subject.id; // ID de la materia donde están los recursos
+        console.log('AI Chat: Accediendo a recursos de la materia -', subject.name);
+        console.log('AI Chat: Tema actual -', topic.name);
         
         if (!this.modal) {
             this.createModal();
@@ -56,9 +68,12 @@ class AIChatModal {
         // Actualizar contexto en la UI
         this.updateContextInfo();
         
-        // Focus en el input
+        // Focus en el input después de que se adjunten los event listeners
         setTimeout(() => {
-            if (input) input.focus();
+            if (this.modal) {
+                const input = this.modal.querySelector('#ai-chat-input');
+                if (input) input.focus();
+            }
         }, 100);
     }
     
@@ -75,7 +90,7 @@ class AIChatModal {
     /**
      * Toggle de visibilidad
      */
-    toggle(subject, topic) {
+    toggle(subject, topic, studyMode = 'subject') {
         if (!subject || !topic) {
             this.notifications.error('No hay tema seleccionado');
             return;
@@ -84,7 +99,7 @@ class AIChatModal {
         if (this.isVisible) {
             this.hide();
         } else {
-            this.show(subject, topic);
+            this.show(subject, topic, studyMode);
         }
     }
     
@@ -234,158 +249,92 @@ class AIChatModal {
             }
             
             if (!response.ok) {
-                // Si no hay índices remotos, crear uno local simulado con los recursos disponibles
-                console.log('[DEBUG] No se encontró índice remoto, creando simulación local');
-                await this.createLocalIndex();
+                // Si no hay índices remotos, mostrar que no hay contenido
+                console.log('[DEBUG] No se encontró índice remoto');
+                this.indexCache = null;
+                this.updateIndexStatus('⚠️ Sin índice', 'warning');
+                this.updateContextInfo();
                 return;
             }
             
-            const index = await response.json();
+            const remoteIndex = await response.json();
             
-            if (!Array.isArray(index) || index.length === 0) {
+            if (!Array.isArray(remoteIndex) || remoteIndex.length === 0) {
                 throw new Error('Índice vacío o inválido');
             }
             
-            console.log('[DEBUG] Índice cargado:', index.length, 'chunks');
-            console.log('[DEBUG] Primer chunk del índice:', index[0]?.sourceName);
+            console.log('[DEBUG] 📡 Índice remoto cargado:', remoteIndex.length, 'chunks');
             
-            // Filtrar chunks solo de recursos indexados
-            const filteredIndex = this.filterIndexedChunks(index);
+            // Filtrar chunks basado en estado local de indexación (respuesta instantánea)
+            const filteredIndex = this.filterIndexedChunks(remoteIndex);
+            
+            console.log('[DEBUG] ✅ Índice filtrado:', filteredIndex.length, 'chunks válidos');
             
             this.indexCache = filteredIndex;
             this.updateIndexStatus(filteredIndex.length, 'success');
             this.updateContextInfo();
             
         } catch (error) {
-            console.error('[DEBUG] Error cargando índice:', error);
+            console.log('[DEBUG] Error cargando índice remoto:', error.message);
             this.indexCache = null;
-            this.updateIndexStatus('⚠️ Sin índice - usando solo apuntes', 'warning');
+            this.updateIndexStatus('❌ Error cargando índice', 'error');
             this.updateContextInfo();
         }
     }
     
     /**
-     * Crea un índice local simulado con los recursos disponibles (para demo sin backend)
-     */
-    async createLocalIndex() {
-        console.log('[DEBUG] Creando índice local simulado...');
-        
-        // Obtener recursos indexados de la materia actual
-        const topicResources = window.app.dataManager.data.resources[this.currentTopicId] || [];
-        const indexedResources = topicResources.filter(r => r.indexed !== false);
-        
-        // Crear clave del caché basada en el estado de indexación
-        const cacheKey = `${this.currentSubject.id}-${this.currentTopic.id}-${indexedResources.map(r => `${r.id}-${r.indexed}`).sort().join('-')}`;
-        
-        // Verificar si ya tenemos un caché válido
-        if (this.indexCache && this.indexCacheKey === cacheKey && 
-            (Date.now() - this.lastIndexUpdate) < this.indexCacheTimeout) {
-            console.log('[DEBUG] Usando índice del caché - válido por', Math.round((this.indexCacheTimeout - (Date.now() - this.lastIndexUpdate)) / 1000), 'segundos');
-            return;
-        }
-        
-        console.log('[DEBUG] Recursos indexados encontrados:', indexedResources.length);
-        
-        if (indexedResources.length === 0) {
-            console.log('[DEBUG] No hay recursos indexados, no se puede crear índice local');
-            this.indexCache = null;
-            this.updateIndexStatus('⚠️ Sin recursos indexados', 'warning');
-            this.updateContextInfo();
-            return;
-        }
-        
-        // Crear chunks simulados de los recursos
-        const chunks = [];
-        
-        for (const resource of indexedResources) {
-            try {
-                // Decodificar el contenido base64
-                const base64Data = resource.data.split(',')[1];
-                const text = atob(base64Data);
-                
-                // Solo procesar archivos de texto
-                if (resource.type === 'text' || resource.mimeType === 'text/plain') {
-                    // Dividir el texto en chunks de ~500 caracteres
-                    const chunkSize = 500;
-                    const words = text.split(/\s+/);
-                    
-                    for (let i = 0; i < words.length; i += Math.floor(chunkSize / 6)) { // ~6 chars por palabra promedio
-                        const chunkWords = words.slice(i, i + Math.floor(chunkSize / 6));
-                        const chunkText = chunkWords.join(' ');
-                        
-                        if (chunkText.trim().length > 50) { // Solo chunks con contenido significativo
-                            chunks.push({
-                                text: chunkText,
-                                sourceName: resource.name,
-                                sourceUrl: null,
-                                embedding: await this.getQueryEmbedding(chunkText), // Simulado - esperar el Promise
-                                topicSlug: this.normalizeSlug(this.currentTopic.name)
-                            });
-                        }
-                    }
-                    
-                    console.log(`[DEBUG] Procesado ${resource.name}: ${Math.ceil(words.length / Math.floor(chunkSize / 6))} chunks`);
-                }
-            } catch (error) {
-                console.warn(`[DEBUG] Error procesando recurso ${resource.name}:`, error);
-            }
-        }
-        
-        console.log(`[DEBUG] Índice local creado con ${chunks.length} chunks totales`);
-        
-        if (chunks.length === 0) {
-            this.indexCache = null;
-            this.updateIndexStatus('⚠️ No se pudieron procesar recursos', 'warning');
-        } else {
-            this.indexCache = chunks;
-            this.indexCacheKey = cacheKey;
-            this.lastIndexUpdate = Date.now();
-            this.updateIndexStatus(chunks.length, 'success');
-            console.log(`[DEBUG] Índice guardado en caché con clave: ${cacheKey}`);
-        }
-        
-        this.updateContextInfo();
-    }
-    /**
      * Invalida el caché del índice cuando cambie el estado de indexación
+     * Si el chat está abierto, recarga el índice inmediatamente
      */
     invalidateIndexCache() {
         console.log('[DEBUG] Invalidando caché del índice por cambio en indexación');
         this.indexCache = null;
         this.indexCacheKey = null;
         this.lastIndexUpdate = 0;
+        
+        // Si el chat está visible, recargar el índice inmediatamente
+        if (this.modal && !this.modal.classList.contains('hidden')) {
+            console.log('[DEBUG] 🔄 Chat abierto - recargando índice automáticamente');
+            this.loadIndex();
+        }
     }
     /**
-     * Filtra chunks del índice para incluir solo recursos indexados
+     * Filtra chunks del índice remoto para incluir solo recursos marcados como indexados localmente
+     * Esto garantiza respuesta instantánea sin esperar actualización del backend
      */
     filterIndexedChunks(index) {
-        if (!this.currentTopicId || !window.app?.dataManager?.data?.resources) {
-            console.log('[DEBUG] No hay datos para filtrar indexación');
+        console.log('[DEBUG] 🔍 Filtrando índice basado en estado local de indexación...');
+        
+        if (!this.currentTopicId || !this.dataManager?.data?.resources) {
+            console.warn('[DEBUG] ⚠️ No se puede filtrar - sin datos locales');
             return index;
         }
         
-        const topicResources = window.app.dataManager.data.resources[this.currentTopicId] || [];
+        // Los recursos están guardados por MATERIA (currentTopicId es subjectId)
+        const subjectResources = this.dataManager.data.resources[this.currentTopicId] || [];
+        console.log('[DEBUG] 📚 Recursos en la materia:', subjectResources.length);
+        
+        // Crear Set de nombres de recursos indexados (sin extensión para matching)
         const indexedResourceNames = new Set();
         
-        // Crear set de nombres de recursos indexados
-        topicResources.forEach(resource => {
-            if (resource.indexed !== false) { // Por defecto true si no está definido
-                const fileName = resource.name.toLowerCase().replace(/\.[^/.]+$/, ''); // Sin extensión
+        subjectResources.forEach(resource => {
+            if (resource.indexed !== false) {
+                const fileName = resource.name.toLowerCase().replace(/\.[^/.]+$/, '');
                 indexedResourceNames.add(fileName);
             }
         });
         
-        console.log('[DEBUG] Recursos indexados encontrados:', indexedResourceNames.size);
+        console.log('[DEBUG] ✅ Recursos indexados:', indexedResourceNames.size);
         
         // Filtrar chunks que pertenezcan a recursos indexados
         const filteredIndex = index.filter(chunk => {
-            if (!chunk.sourceName) return true; // Mantener chunks sin nombre de fuente
+            if (!chunk.sourceName) return true; // Mantener chunks sin fuente específica
             
             const chunkFileName = chunk.sourceName.toLowerCase().replace(/\.[^/.]+$/, '');
             const isIndexed = indexedResourceNames.has(chunkFileName);
             
             if (!isIndexed) {
-                console.log('[DEBUG] Excluyendo chunk de recurso no indexado:', chunk.sourceName);
+                console.log('[DEBUG] ❌ Excluido:', chunk.sourceName);
             }
             
             return isIndexed;
@@ -581,7 +530,7 @@ class AIChatModal {
             if (includeResources) {
                 if (topChunks.length === 0) {
                     // Verificar si hay recursos indexados disponibles
-                    const topicResources = window.app.dataManager.data.resources[this.currentTopicId] || [];
+                    const topicResources = this.dataManager.data.resources[this.currentTopicId] || [];
                     const indexedResources = topicResources.filter(r => r.indexed !== false);
                     if (indexedResources.length === 0) {
                         missingSources.push('recursos indexados');
@@ -1051,11 +1000,13 @@ class AIChatModal {
             .toString()
             .toLowerCase()
             .trim()
-            .replace(/\s+/g, '-')           // Espacios a guiones
-            .replace(/[^\w\-]+/g, '')        // Solo alfanuméricos y guiones
-            .replace(/\-\-+/g, '-')          // Guiones múltiples a uno
-            .replace(/^-+/, '')              // Remover guiones al inicio
-            .replace(/-+$/, '');             // Remover guiones al final
+            .normalize('NFD')                    // Descomponer caracteres acentuados
+            .replace(/[\u0300-\u036f]/g, '')     // Remover diacríticos (acentos)
+            .replace(/\s+/g, '-')               // Espacios a guiones
+            .replace(/[^\w\-]+/g, '')            // Solo alfanuméricos y guiones
+            .replace(/\-\-+/g, '-')              // Guiones múltiples a uno
+            .replace(/^-+/, '')                  // Remover guiones al inicio
+            .replace(/-+$/, '');                 // Remover guiones al final
     }
     
     /**

@@ -220,6 +220,10 @@ class TopicsView {
                         </div>
                     </div>
                     <div class="flex items-center gap-2">
+                        <button class="study-topic-btn px-3 py-1.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white text-sm font-semibold rounded-lg transition-all flex items-center gap-1.5" title="Estudiar este tema" data-topic-id="${topic.id}">
+                            <i data-lucide="book-open" class="w-4 h-4"></i>
+                            <span>Estudiar</span>
+                        </button>
                         <button class="add-subtask-btn opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md hover:bg-slate-700" title="Añadir subtema" data-topic-id="${topic.id}">
                             <i data-lucide="plus" class="w-4 h-4 text-slate-400"></i>
                         </button>
@@ -927,6 +931,15 @@ class TopicsView {
             });
         });
         
+        // Botones de estudiar tema específico
+        this.container.querySelectorAll('.study-topic-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const topicId = btn.dataset.topicId;
+                this.enterStudyView(topicId);
+            });
+        });
+        
         // Eliminar temas
         this.container.querySelectorAll('.delete-topic-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
@@ -1224,19 +1237,39 @@ class TopicsView {
     
     /**
      * Navega a la vista de estudio
+     * @param {string} topicId - ID del tema específico (opcional)
      */
-    enterStudyView() {
+    enterStudyView(topicId = null) {
         const topics = this.dataManager.getTopics(this.currentSubject.id);
-        if (topics.length > 0) {
-            // Ir al primer tema
-            this.router.navigateTo('study', {
-                subject: this.currentSubject,
-                topic: topics[0]
-            });
-        } else {
-            // No hay temas, mostrar mensaje
+        
+        if (topics.length === 0) {
             this.notifications.warning('Crea un tema primero para comenzar a estudiar');
+            return;
         }
+        
+        let selectedTopic;
+        let studyMode;
+        
+        if (topicId) {
+            // Modo: Estudiar tema específico
+            selectedTopic = this.dataManager.getTopic(topicId);
+            studyMode = 'topic';
+            
+            if (!selectedTopic) {
+                this.notifications.error('Tema no encontrado');
+                return;
+            }
+        } else {
+            // Modo: Estudiar toda la materia
+            selectedTopic = topics[0];
+            studyMode = 'subject';
+        }
+        
+        this.router.navigateTo('study', {
+            subject: this.currentSubject,
+            topic: selectedTopic,
+            studyMode: studyMode
+        });
     }
     
     
@@ -1814,83 +1847,121 @@ class TopicsView {
             this.notifications.warning('Sistema de quizzes no disponible');
             return;
         }
-        
-        if (!this.currentSubject) {
-            this.notifications.warning('Primero selecciona una materia');
-            return;
-        }
-        
-        const topics = this.dataManager.getTopics(this.currentSubject.id);
-        
-        if (topics.length === 0) {
-            this.notifications.warning('Esta materia no tiene temas. Crea uno primero.');
-            return;
-        }
-        
-        // Modal de selección de tema
+
+        // Modal de selección con 2 pasos: Materias -> Temas
         const modal = document.createElement('div');
         modal.className = 'fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4';
         modal.id = 'select-topic-modal';
-        
+
+        const renderSubjects = () => {
+            const subjects = this.dataManager.getSubjects();
+            return `
+                <div class="p-6">
+                    <label class="block text-sm font-semibold text-white mb-3">1. Selecciona la Materia</label>
+                    <div class="grid grid-cols-1 gap-2 max-h-96 overflow-y-auto">
+                        ${subjects.map(s => `
+                            <button class="select-subject-btn text-left p-3 bg-slate-900/50 hover:bg-slate-700 rounded-lg transition-all border-2 border-transparent hover:border-blue-500" data-subject-id="${s.id}">
+                                <div class="font-semibold text-white">${s.name}</div>
+                                <div class="text-xs text-slate-400 mt-1">${(this.dataManager.getTopics(s.id) || []).length} temas</div>
+                            </button>
+                        `).join('')}
+                    </div>
+                    <div class="flex justify-end gap-3 pt-4 mt-4 border-t border-slate-700">
+                        <button id="cancel-modal" class="px-6 py-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">Cancelar</button>
+                    </div>
+                </div>`;
+        };
+
+        const renderTopics = (subject) => {
+            const topics = this.dataManager.getTopics(subject.id) || [];
+            return `
+                <div class="p-6">
+                    <div class="flex items-center justify-between mb-3">
+                        <label class="block text-sm font-semibold text-white">2. Selecciona el Tema de <span class='text-blue-400'>${subject.name}</span></label>
+                        <button id="back-to-subjects" class="px-3 py-1.5 text-slate-300 hover:text-white hover:bg-slate-700 rounded transition-colors text-xs">← Cambiar materia</button>
+                    </div>
+                    <div class="grid grid-cols-1 gap-2 max-h-96 overflow-y-auto">
+                        ${topics.length > 0 ? topics.map(topic => `
+                            <button class="select-topic-btn text-left p-3 bg-slate-900/50 hover:bg-slate-700 rounded-lg transition-all border-2 border-transparent hover:border-blue-500" data-topic-id="${topic.id}">
+                                <div class="font-semibold text-white">${topic.name}</div>
+                                <div class="text-xs text-slate-400 mt-1">Click para crear preguntas en este tema</div>
+                            </button>
+                        `).join('') : `
+                            <div class="text-center text-slate-500 py-8">
+                                <p>Esta materia no tiene temas.</p>
+                                <p class="text-xs mt-1">Crea un tema primero.</p>
+                            </div>
+                        `}
+                    </div>
+                    <div class="flex justify-end gap-3 pt-4 mt-4 border-t border-slate-700">
+                        <button id="cancel-modal" class="px-6 py-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">Cancelar</button>
+                    </div>
+                </div>`;
+        };
+
         modal.innerHTML = `
             <div class="bg-slate-800 rounded-2xl w-full max-w-2xl shadow-2xl border border-slate-700">
                 <div class="p-6 border-b border-slate-700">
                     <h3 class="text-2xl font-bold text-white mb-2">Crear Colección de Preguntas</h3>
-                    <p class="text-sm text-slate-400">Materia: ${this.currentSubject.name} • Selecciona el tema</p>
+                    <p class="text-sm text-slate-400">Selecciona la materia y luego el tema</p>
                 </div>
-                
-                <div class="p-6">
-                    <label class="block text-sm font-semibold text-white mb-3">Selecciona el Tema</label>
-                    <div class="grid grid-cols-1 gap-2 max-h-96 overflow-y-auto">
-                        ${topics.map(topic => `
-                            <button class="select-topic-btn text-left p-3 bg-slate-900/50 hover:bg-slate-700 rounded-lg transition-all border-2 border-transparent hover:border-purple-500" data-topic-id="${topic.id}">
-                                <div class="font-semibold text-white">${topic.name}</div>
-                                <div class="text-xs text-slate-400 mt-1">Click para crear preguntas en este tema</div>
-                            </button>
-                        `).join('')}
-                    </div>
-                    
-                    <div class="flex justify-end gap-3 pt-4 mt-4 border-t border-slate-700">
-                        <button id="cancel-topic-selection" class="px-6 py-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                            Cancelar
-                        </button>
-                    </div>
+                <div id="modal-step-container">
+                    ${renderSubjects()}
                 </div>
             </div>
         `;
-        
+
         document.body.appendChild(modal);
-        
-        // Event listeners para temas
-        const topicBtns = modal.querySelectorAll('.select-topic-btn');
-        topicBtns.forEach(topicBtn => {
-            topicBtn.addEventListener('click', () => {
-                const selectedTopicId = topicBtn.dataset.topicId;
-                const topic = topics.find(t => t.id === selectedTopicId);
-                
-                // Cerrar modal y abrir creador de quiz
-                document.body.removeChild(modal);
-                
-                if (window.QuizCreatorModal) {
-                    const quizModal = new window.QuizCreatorModal(this.quizManager, this.dataManager, this.notifications);
-                    quizModal.show(selectedTopicId, topic.name);
-                } else {
-                    this.notifications.error('Error: QuizCreatorModal no está disponible');
-                }
+
+        const stepContainer = modal.querySelector('#modal-step-container');
+
+        const wireSubjectsStep = () => {
+            stepContainer.querySelectorAll('.select-subject-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const subjectId = btn.dataset.subjectId;
+                    const subject = this.dataManager.getSubjects().find(s => s.id === subjectId);
+                    if (!subject) return;
+                    stepContainer.innerHTML = renderTopics(subject);
+                    wireTopicsStep(subject);
+                });
             });
-        });
-        
-        // Botón cancelar
-        const cancelBtn = modal.querySelector('#cancel-topic-selection');
-        if (cancelBtn) {
-            cancelBtn.addEventListener('click', () => document.body.removeChild(modal));
-        }
-        
+            const cancel = modal.querySelector('#cancel-modal');
+            if (cancel) cancel.addEventListener('click', () => document.body.removeChild(modal));
+        };
+
+        const wireTopicsStep = (subject) => {
+            stepContainer.querySelectorAll('.select-topic-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const selectedTopicId = btn.dataset.topicId;
+                    const topic = (this.dataManager.getTopics(subject.id) || []).find(t => t.id === selectedTopicId);
+                    if (!topic) return;
+                    // Cerrar modal y abrir creador batch normal
+                    document.body.removeChild(modal);
+                    if (window.QuizCreatorModal) {
+                        const quizModal = new window.QuizCreatorModal(this.quizManager, this.dataManager, this.notifications);
+                        quizModal.show(selectedTopicId, topic.name);
+                    } else {
+                        this.notifications.error('Error: QuizCreatorModal no está disponible');
+                    }
+                });
+            });
+            const back = modal.querySelector('#back-to-subjects');
+            if (back) back.addEventListener('click', () => {
+                stepContainer.innerHTML = renderSubjects();
+                wireSubjectsStep();
+            });
+            const cancel = modal.querySelector('#cancel-modal');
+            if (cancel) cancel.addEventListener('click', () => document.body.removeChild(modal));
+        };
+
+        // Inicial step
+        wireSubjectsStep();
+
         // Cerrar al hacer click fuera
         modal.addEventListener('click', (e) => {
             if (e.target === modal) document.body.removeChild(modal);
         });
-        
+
         // Inicializar iconos
         if (window.lucide) {
             window.lucide.createIcons();

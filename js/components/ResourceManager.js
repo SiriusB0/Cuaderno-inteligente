@@ -67,14 +67,25 @@ class ResourceManager {
     }
     
     /**
-     * Carga recursos para un tema específico
+     * Carga recursos de una materia
+     * IMPORTANTE: Los recursos se guardan por MATERIA, no por tema
+     * Todos los temas de una materia comparten los mismos recursos
+     * @param {string} subjectId - ID de la materia
+     * @param {string} topicId - ID del tema actual (solo para referencia)
+     * @param {string} studyMode - Modo de estudio (no afecta los recursos)
      */
-    loadResources(subjectId) {
-        console.log('ResourceManager: Cargando recursos para materia:', subjectId);
-        this.currentTopicId = subjectId; // Aquí guardamos el ID de la materia
+    loadResources(subjectId, topicId = null, studyMode = 'subject') {
+        console.log('ResourceManager: Cargando recursos');
+        console.log('- Materia:', subjectId);
+        console.log('- Tema:', topicId);
+        console.log('- Modo:', studyMode);
         
-        // Asegurar que tenemos el tema actual
-        if (!this.currentTopicId) {
+        this.currentSubjectId = subjectId;
+        this.currentTopicId = topicId;
+        this.studyMode = studyMode;
+        
+        // Asegurar que tenemos al menos la materia
+        if (!this.currentSubjectId) {
             console.warn('ResourceManager: No se proporcionó subjectId');
             return;
         }
@@ -127,11 +138,13 @@ class ResourceManager {
      * Procesa archivos seleccionados
      */
     async processFiles(files) {
-        console.log('ResourceManager: Procesando archivos, topicId actual:', this.currentTopicId);
+        console.log('ResourceManager: Procesando archivos');
+        console.log('- Materia:', this.currentSubjectId);
+        console.log('- Tema:', this.currentTopicId);
         
-        if (!this.currentTopicId) {
-            this.notifications.error('No hay tema seleccionado. Por favor, selecciona un tema primero.');
-            console.error('ResourceManager: Intento de subir archivo sin tema seleccionado');
+        if (!this.currentSubjectId) {
+            this.notifications.error('No hay materia seleccionada. Por favor, selecciona una materia primero.');
+            console.error('ResourceManager: Intento de subir archivo sin materia seleccionada');
             return;
         }
         
@@ -173,18 +186,18 @@ class ResourceManager {
                 indexed: true // Por defecto, los recursos nuevos están indexados
             };
             
-            // Guardar en datos
-            if (!this.dataManager.data.resources[this.currentTopicId]) {
-                this.dataManager.data.resources[this.currentTopicId] = [];
+            // Guardar en datos (por MATERIA, no por tema)
+            if (!this.dataManager.data.resources[this.currentSubjectId]) {
+                this.dataManager.data.resources[this.currentSubjectId] = [];
             }
             
-            this.dataManager.data.resources[this.currentTopicId].push(resource);
+            this.dataManager.data.resources[this.currentSubjectId].push(resource);
             this.dataManager.save();
             
             // Emitir evento para que otras vistas se actualicen
             this.dataManager.emit('resourceAdded', { 
                 resourceId: resource.id, 
-                topicId: this.currentTopicId 
+                subjectId: this.currentSubjectId 
             });
             
             // Actualizar UI
@@ -192,6 +205,10 @@ class ResourceManager {
             this.renderResources();
             
             this.notifications.success(`${file.name} subido correctamente`);
+            
+            // Indexar automáticamente el recurso recién subido
+            console.log('[ResourceManager] Iniciando indexación automática del recurso subido');
+            this.autoIndexResource(resource);
             
         } catch (error) {
             this.hideUploadProgress(progressId);
@@ -277,9 +294,19 @@ class ResourceManager {
      * Renderiza lista de recursos en grid hermoso
      */
     renderResources() {
-        if (!this.resourceList || !this.currentTopicId) return;
+        if (!this.resourceList) return;
         
-        const resources = this.dataManager.data.resources[this.currentTopicId] || [];
+        let resources = [];
+        
+        // Los recursos SIEMPRE se guardan por MATERIA
+        // Todos los temas de una materia comparten los mismos recursos
+        if (this.currentSubjectId) {
+            resources = this.dataManager.data.resources[this.currentSubjectId] || [];
+            console.log(`Mostrando ${resources.length} recursos de la materia ${this.currentSubjectId}`);
+        } else {
+            console.warn('ResourceManager: No hay subjectId');
+            return;
+        }
         
         if (resources.length === 0) {
             this.resourceList.innerHTML = `
@@ -348,8 +375,9 @@ class ResourceManager {
         
         // Estado de indexación
         const isIndexed = resource.indexed !== false; // Por defecto true si no está definido
-        const indexIcon = isIndexed ? 'search' : 'search-x';
-        const indexColor = isIndexed ? 'text-green-400' : 'text-red-400';
+        const indexBgColor = isIndexed ? 'bg-green-500/20' : 'bg-gray-500/20';
+        const indexIconColor = isIndexed ? 'text-green-400' : 'text-gray-400';
+        const indexHoverBg = isIndexed ? 'hover:bg-green-500/30' : 'hover:bg-gray-500/30';
         const indexTitle = isIndexed ? 'Indexado - Click para desindexar' : 'No indexado - Click para indexar';
         
         switch(resource.type) {
@@ -419,9 +447,9 @@ class ResourceManager {
                 <!-- Botones en esquina superior derecha -->
                 <div class="absolute top-2 right-2 flex gap-1 ">
                     <!-- Botón de indexación -->
-                    <button class="index-resource-btn p-1.5 text-gray-400 hover:text-${isIndexed ? 'red' : 'green'}-400 hover:bg-${isIndexed ? 'red' : 'green'}-500/10 rounded-lg transition-all"
+                    <button class="index-resource-btn p-2 ${indexBgColor} ${indexHoverBg} rounded-lg transition-all shadow-sm"
                             title="${indexTitle}">
-                        <i data-lucide="${indexIcon}" class="w-4 h-4 ${indexColor}"></i>
+                        <i data-lucide="search" class="w-4 h-4 ${indexIconColor}"></i>
                     </button>
                     
                     <!-- Botón eliminar -->
@@ -449,12 +477,6 @@ class ResourceManager {
                             <span class="flex-shrink-0">•</span>
                             <i data-lucide="clock" class="w-3 h-3 inline flex-shrink-0"></i>
                             <span class="flex-shrink-0">${date}</span>
-                            <!-- Indicador de indexación -->
-                            <span class="flex-shrink-0">•</span>
-                            <span class="inline-flex items-center gap-1 text-xs ${isIndexed ? 'text-green-400' : 'text-red-400'} flex-shrink-0">
-                                <i data-lucide="${indexIcon}" class="w-3 h-3"></i>
-                                <span>${isIndexed ? 'Indexado' : 'No indexado'}</span>
-                            </span>
                         </div>
                     </div>
                 </div>
@@ -1295,16 +1317,24 @@ class ResourceManager {
     }
 
     /**
-     * Alterna el estado de indexación de un recurso
+     * Alterna el estado de indexación de un recurso (indexado/desindexado)
+     * Sincroniza el estado con el backend automáticamente
      */
     toggleResourceIndex(resourceId) {
-        const resources = this.dataManager.data.resources[this.currentTopicId] || [];
+        console.log('[ResourceManager] Toggle indexación para:', resourceId);
+        
+        const resources = this.dataManager.data.resources[this.currentSubjectId] || [];
         const resource = resources.find(r => r.id === resourceId);
 
-        if (!resource) return;
+        if (!resource) {
+            console.error('[ResourceManager] Recurso no encontrado:', resourceId);
+            this.notifications.error('Recurso no encontrado');
+            return;
+        }
 
         // Alternar estado de indexación
         resource.indexed = resource.indexed !== false ? false : true;
+        console.log('[ResourceManager] Estado cambiado a:', resource.indexed);
 
         // Guardar cambios
         this.dataManager.save();
@@ -1314,12 +1344,251 @@ class ResourceManager {
 
         // Notificar al usuario
         const status = resource.indexed ? 'indexado' : 'desindexado';
-        this.notifications.success(`Recurso ${status}`);
+        this.notifications.success('Recurso ' + status + ' correctamente');
 
-        // Forzar recarga del índice del chat IA para aplicar el filtro
-        if (window.app?.aiChat) {
-            window.app.aiChat.invalidateIndexCache(); // Invalidar caché completo
+        // Sincronizar con backend
+        if (resource.indexed) {
+            console.log('[ResourceManager] Indexando en backend...');
+            this.autoIndexResource(resource);
+        } else {
+            console.log('[ResourceManager] Desindexando en backend...');
+            this.autoDeindexResource(resource);
         }
+
+        // Disparar evento personalizado para que el chat se recargue
+        console.log('[ResourceManager] Disparando evento de actualización de índice');
+        window.dispatchEvent(new CustomEvent('resource-index-changed', {
+            detail: { 
+                resourceId: resourceId,
+                indexed: resource.indexed 
+            }
+        }));
+    }
+
+    /**
+     * Indexa automáticamente un recurso en el backend
+     * Genera embeddings y los almacena en Supabase Storage
+     */
+    async autoIndexResource(resource) {
+        console.log('[ResourceManager] Indexando recurso:', resource.name);
+        
+        // Solo indexar archivos de texto
+        if (resource.type !== 'text' && resource.mimeType !== 'text/plain') {
+            console.log('[ResourceManager] Recurso no es texto, omitiendo indexación');
+            return;
+        }
+        
+        try {
+            // Decodificar contenido base64
+            const base64Data = resource.data.split(',')[1];
+            const decodedText = atob(base64Data);
+            
+            // Obtener contexto de materia/tema
+            if (!this.currentSubjectId || !this.currentTopicId) {
+                throw new Error('No hay materia/tema seleccionado');
+            }
+            
+            const subject = this.dataManager.getSubject(this.currentSubjectId);
+            const topic = this.dataManager.getTopic(this.currentTopicId);
+            
+            if (!subject || !topic) {
+                throw new Error('No se encontraron los datos de materia/tema');
+            }
+            
+            // Llamar a Supabase Edge Function
+            const SUPABASE_URL = 'https://xsumibufekrmfcenyqgq.supabase.co';
+            const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhzdW1pYnVmZWtybWZjZW55cWdxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk0OTExOTIsImV4cCI6MjA3NTA2NzE5Mn0.x-vdT-84cEOj-5SDOVfDbgZMVVWczj8iVM0P_VoEkBc';
+            
+            const response = await fetch(`${SUPABASE_URL}/functions/v1/index-resources`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    subjectId: subject.id,
+                    topicId: topic.id,
+                    subjectName: subject.name,
+                    topicName: topic.name,
+                    resourceTexts: [{
+                        name: resource.name,
+                        text: decodedText
+                    }]
+                })
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Error al indexar recurso');
+            }
+            
+            const result = await response.json();
+            console.log('[ResourceManager] Indexación completada:', result.chunks, 'chunks');
+            
+            this.notifications.success(`Recurso indexado con ${result.chunks || 0} fragmentos`);
+            
+            // Invalidar caché del chat IA
+            if (window.app?.aiChatModal) {
+                window.app.aiChatModal.invalidateIndexCache();
+            }
+            
+        } catch (error) {
+            console.error('[ResourceManager] Error en indexación:', error.message);
+            this.notifications.warning('El recurso está guardado pero no se pudo indexar');
+        }
+    }
+    
+    /**
+     * Desindexar un recurso en el backend
+     * Re-indexa todos los recursos EXCEPTO el desindexado
+     */
+    async autoDeindexResource(resource) {
+        console.log('[ResourceManager] Desindexando recurso:', resource.name);
+        
+        try {
+            // Obtener contexto de materia/tema
+            if (!this.currentSubjectId || !this.currentTopicId) {
+                throw new Error('No hay materia/tema seleccionado');
+            }
+            
+            const subject = this.dataManager.getSubject(this.currentSubjectId);
+            const topic = this.dataManager.getTopic(this.currentTopicId);
+            
+            if (!subject || !topic) {
+                throw new Error('No se encontraron los datos de materia/tema');
+            }
+            
+            // Obtener TODOS los recursos indexados EXCEPTO el actual
+            const allResources = this.dataManager.data.resources[this.currentSubjectId] || [];
+            const indexedResources = allResources.filter(r => 
+                r.indexed !== false && 
+                r.id !== resource.id &&
+                (r.type === 'text' || r.mimeType === 'text/plain')
+            );
+            
+            console.log('[ResourceManager] Recursos indexados restantes:', indexedResources.length);
+            
+            // Si no quedan recursos indexados, solo actualizar localmente
+            if (indexedResources.length === 0) {
+                console.log('[ResourceManager] No quedan recursos indexados - omitiendo llamada al backend');
+                this.notifications.info('Recurso desindexado - El chat IA ya no lo verá');
+                
+                // Invalidar caché del chat IA
+                if (window.app?.aiChatModal) {
+                    window.app.aiChatModal.invalidateIndexCache();
+                }
+                return;
+            }
+            
+            // Preparar textos para re-indexar
+            const resourceTexts = indexedResources.map(r => {
+                const base64Data = r.data.split(',')[1];
+                const decodedText = atob(base64Data);
+                return {
+                    name: r.name,
+                    text: decodedText
+                };
+            });
+            
+            // Re-indexar solo los recursos que siguen indexados
+            const SUPABASE_URL = 'https://xsumibufekrmfcenyqgq.supabase.co';
+            const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhzdW1pYnVmZWtybWZjZW55cWdxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk0OTExOTIsImV4cCI6MjA3NTA2NzE5Mn0.x-vdT-84cEOj-5SDOVfDbgZMVVWczj8iVM0P_VoEkBc';
+            
+            const response = await fetch(`${SUPABASE_URL}/functions/v1/index-resources`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    subjectId: subject.id,
+                    topicId: topic.id,
+                    subjectName: subject.name,
+                    topicName: topic.name,
+                    resourceTexts: resourceTexts
+                })
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Error al desindexar recurso');
+            }
+            
+            const result = await response.json();
+            console.log('[ResourceManager] Desindexación completada:', result.chunks, 'chunks restantes');
+            
+            this.notifications.info('Recurso desindexado - El chat IA ya no lo verá');
+            
+            // Invalidar caché del chat IA
+            if (window.app?.aiChatModal) {
+                window.app.aiChatModal.invalidateIndexCache();
+            }
+            
+        } catch (error) {
+            console.error('[ResourceManager] Error en desindexación:', error.message);
+            this.notifications.warning('El recurso fue marcado como no indexado localmente');
+        }
+    }
+    
+    /**
+     * Obtiene el nombre de la materia actual
+     */
+    getCurrentSubjectName() {
+        const studyView = document.getElementById('study-view');
+        if (studyView && window.app?.views?.study?.currentSubject) {
+            return window.app.views.study.currentSubject.name;
+        }
+        return 'unknown';
+    }
+    
+    /**
+     * Obtiene el nombre del tema actual
+     */
+    getCurrentTopicName() {
+        const studyView = document.getElementById('study-view');
+        if (studyView && window.app?.views?.study?.currentTopic) {
+            return window.app.views.study.currentTopic.name;
+        }
+        return 'unknown';
+    }
+
+    /**
+     * Elimina un recurso
+     */
+    deleteResource(resourceId) {
+        // Los recursos están guardados por MATERIA
+        const resources = this.dataManager.data.resources[this.currentSubjectId] || [];
+        const resource = resources.find(r => r.id === resourceId);
+
+        if (!resource) {
+            console.error('Recurso no encontrado:', resourceId);
+            this.notifications.error('Recurso no encontrado');
+            return;
+        }
+
+        // Mostrar confirmación
+        this.showConfirmModal(
+            '¿Eliminar recurso?',
+            'Se eliminara "' + resource.name + '". Esta accion no se puede deshacer.',
+            () => {
+                // Eliminar del array
+                this.dataManager.data.resources[this.currentSubjectId] = resources.filter(r => r.id !== resourceId);
+                
+                // Guardar cambios
+                this.dataManager.save();
+                
+                // Actualizar UI
+                this.renderResources();
+                
+                // Notificar
+                this.notifications.success('Recurso eliminado correctamente');
+                
+                // Invalidar caché del chat IA
+                if (window.app?.aiChatModal) {
+                    window.app.aiChatModal.invalidateIndexCache();
+                }
+            }
+        );
     }
 
     /**

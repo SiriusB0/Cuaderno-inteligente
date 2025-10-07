@@ -2,8 +2,8 @@
 import DataManager from './core/DataManager.js';
 import Router from './core/Router.js';
 import NotificationManager from './components/NotificationManager.js';
-import AuthManager from './core/AuthManager.js';
-import LoginView from './views/LoginView.js';
+import PomodoroManager from './components/PomodoroManager.js';
+import DashboardView from './views/DashboardView.js';
 import QuizManager from './components/QuizManager.js';
 import QuizCreatorModal from './views/QuizCreatorModal.js';
 import QuizStudyModal from './views/QuizStudyModal.js';
@@ -21,9 +21,8 @@ class CuadernoInteligente {
         this.dataManager = null;
         this.router = null;
         this.notifications = null;
-        this.authManager = null;
-        this.supabaseClient = null;
         this.views = {};
+        this.supabase = createSupabaseClient();
         
         this.init();
     }
@@ -33,24 +32,15 @@ class CuadernoInteligente {
      */
     async init() {
         try {
-            // Mostrar indicador de carga
-            this.showLoadingState();
+            // auth.js ya maneja la autenticación, solo inicializar componentes
             
             // Inicializar componentes core
             this.dataManager = new DataManager();
             this.router = new Router();
             this.notifications = new NotificationManager();
             
-            // Inicializar Supabase (opcional)
-            this.supabaseClient = createSupabaseClient();
-            
-            // Inicializar AuthManager
-            if (this.supabaseClient) {
-                this.authManager = new AuthManager(this.supabaseClient, this.notifications);
-                await this.authManager.initialize();
-            }
-            
-            // Inicializar QuizManager
+            // Inicializar managers
+            this.pomodoroManager = new PomodoroManager(this.dataManager, this.notifications);
             this.quizManager = new QuizManager(this.dataManager, this.notifications);
             
             // Hacer disponibles globalmente para los modales
@@ -66,31 +56,32 @@ class CuadernoInteligente {
             // Configurar listeners de datos
             this.setupDataListeners();
             
-            // Verificar autenticación y mostrar vista apropiada
-            if (this.authManager && !this.authManager.isAuthenticated()) {
-                // Mostrar login si Supabase está configurado y no hay sesión
-                this.router.navigate('login');
-            } else {
-                // Inicializar router normalmente
-                this.router.initialize();
-            }
+            // Inicializar router
+            this.router.initialize();
             
             // Inicializar iconos de Lucide
             if (window.lucide) {
                 window.lucide.createIcons();
             }
             
-            // Ocultar indicador de carga
-            this.hideLoadingState();
+            // Mostrar notificación de bienvenida
+            this.showWelcomeMessage();
             
-            // Mostrar notificación de bienvenida si está autenticado
-            if (!this.authManager || this.authManager.isAuthenticated()) {
-                this.showWelcomeMessage();
-            }
+            // Hacer funciones disponibles globalmente (auth.js ya las tiene)
+            window.showSettingsModal = window.showSettingsModal || function() {
+                console.warn('showSettingsModal no disponible');
+            };
+            window.logout = () => {
+                if (window.authManager) {
+                    window.authManager.logout();
+                }
+            };
+            
+            console.log('✅ Aplicación inicializada');
             
         } catch (error) {
             console.error('Error inicializando aplicación:', error);
-            this.notifications.error('Error al inicializar la aplicación');
+            alert('Error al inicializar la aplicación: ' + error.message);
         }
     }
     
@@ -98,14 +89,14 @@ class CuadernoInteligente {
      * Inicializa todas las vistas
      */
     initializeViews() {
-        // Vista de login (solo si hay authManager)
-        if (this.authManager) {
-            this.views.login = new LoginView(
-                this.authManager,
-                this.router,
-                this.notifications
-            );
-        }
+        // Vista de dashboard
+        this.views.dashboard = new DashboardView(
+            this.dataManager,
+            this.router,
+            this.notifications,
+            this.pomodoroManager,
+            this.quizManager
+        );
         
         this.views.subjects = new SubjectsView(
             this.dataManager, 
@@ -116,7 +107,8 @@ class CuadernoInteligente {
         this.views.topics = new TopicsView(
             this.dataManager, 
             this.router, 
-            this.notifications
+            this.notifications,
+            this.quizManager
         );
         
         this.views.study = new StudyView(
@@ -138,8 +130,16 @@ class CuadernoInteligente {
     setupGlobalEventListeners() {
         // Manejo de errores globales
         window.addEventListener('error', (event) => {
-            console.error('Error global:', event.error);
-            this.notifications.error('Ha ocurrido un error inesperado');
+            // Ignorar errores de recursos (imágenes, scripts externos)
+            if (event.target !== window) {
+                return;
+            }
+            
+            // Solo mostrar si hay un error real
+            if (event.error) {
+                console.error('Error global:', event.error);
+                this.notifications.error('Ha ocurrido un error inesperado');
+            }
         });
         
         // Manejo de promesas rechazadas
@@ -190,6 +190,9 @@ class CuadernoInteligente {
         
         // Renderizar vista correspondiente
         switch (to) {
+            case 'dashboard':
+                this.views.dashboard.render();
+                break;
             case 'subjects':
                 this.views.subjects.render();
                 break;
@@ -214,25 +217,23 @@ class CuadernoInteligente {
      * Maneja atajos de teclado globales
      */
     handleGlobalKeyboard(e) {
-        // Ctrl/Cmd + S - Guardar
-        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        // === LAYOUT ===
+        if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
             e.preventDefault();
-            this.dataManager.save();
-            this.notifications.success('Datos guardados');
+            this.toggleLeftSidebar();
+            return;
         }
-        
-        // Escape - Cerrar modales o salir de modo presentación
-        if (e.key === 'Escape') {
-            this.closeModals();
-            if (this.router.getCurrentView().name === 'presentation') {
-                this.router.goBack();
-            }
-        }
-        
-        // F11 - Modo presentación (si estamos en estudio)
-        if (e.key === 'F11' && this.router.getCurrentView().name === 'study') {
+
+        if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'B') {
             e.preventDefault();
-            this.views.presentation.enter();
+            this.toggleRightSidebar();
+            return;
+        }
+
+        if ((e.ctrlKey || e.metaKey) && e.key === 'h') {
+            e.preventDefault();
+            this.toggleHeader();
+            return;
         }
     }
     
@@ -259,6 +260,54 @@ class CuadernoInteligente {
     }
     
     /**
+     * Oculta/muestra el sidebar izquierdo
+     */
+    toggleLeftSidebar() {
+        const grid = document.getElementById('study-content-grid');
+        if (!grid) return;
+
+        if (grid.classList.contains('hide-left')) {
+            grid.classList.remove('hide-left');
+            this.notifications.info('Sidebar izquierdo visible');
+        } else {
+            grid.classList.add('hide-left');
+            this.notifications.info('Sidebar izquierdo oculto');
+        }
+    }
+
+    /**
+     * Oculta/muestra el sidebar derecho
+     */
+    toggleRightSidebar() {
+        const grid = document.getElementById('study-content-grid');
+        if (!grid) return;
+
+        if (grid.classList.contains('hide-right')) {
+            grid.classList.remove('hide-right');
+            this.notifications.info('Sidebar derecho visible');
+        } else {
+            grid.classList.add('hide-right');
+            this.notifications.info('Sidebar derecho oculto');
+        }
+    }
+
+    /**
+     * Oculta/muestra el header
+     */
+    toggleHeader() {
+        const header = document.querySelector('#study-view header');
+        if (!header) return;
+
+        if (header.classList.contains('header-hidden')) {
+            header.classList.remove('header-hidden');
+            this.notifications.info('Header visible');
+        } else {
+            header.classList.add('header-hidden');
+            this.notifications.info('Header oculto');
+        }
+    }
+    
+    /**
      * Cierra todos los modales abiertos
      */
     closeModals() {
@@ -269,29 +318,6 @@ class CuadernoInteligente {
         });
     }
     
-    /**
-     * Muestra estado de carga
-     */
-    showLoadingState() {
-        const app = document.getElementById('app');
-        if (app) {
-            app.innerHTML = `
-                <div class="h-full flex items-center justify-center">
-                    <div class="text-center">
-                        <div class="spinner w-8 h-8 mx-auto mb-4"></div>
-                        <p class="text-gray-600 dark:text-gray-400">Cargando Cuaderno Inteligente...</p>
-                    </div>
-                </div>
-            `;
-        }
-    }
-    
-    /**
-     * Oculta estado de carga
-     */
-    hideLoadingState() {
-        // El contenido se restaurará cuando se renderice la primera vista
-    }
     
     /**
      * Muestra mensaje de bienvenida

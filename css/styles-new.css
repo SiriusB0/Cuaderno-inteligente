@@ -15,13 +15,206 @@
     --border-color: #e5e7eb;
 }
 
-/* Dark mode variables */
+/* Dark mode variables - Paleta profesional GitHub/VSCode style */
 .dark {
-    --text-primary: #f9fafb;
-    --text-secondary: #d1d5db;
-    --bg-primary: #1f2937;
-    --bg-secondary: #111827;
-    --border-color: #374151;
+    /* Textos */
+    --text-primary: #e2e8f0;
+    --text-secondary: #cbd5e1;
+    --text-tertiary: #94a3b8;
+    --text-muted: #64748b;
+    
+    /* Fondos */
+    --bg-primary: #0d1117;
+    --bg-secondary: #161b22;
+    --bg-tertiary: #1e1e2e;
+    --bg-card: #161b22;
+    --bg-elevated: #1e1e2e;
+    
+    /* Bordes */
+    --border-color: rgba(255, 255, 255, 0.05);
+    --border-subtle: rgba(255, 255, 255, 0.03);
+    --border-strong: rgba(255, 255, 255, 0.1);
+    
+    /* Estados interactivos */
+    --hover-bg: #2a2f3d;
+    --active-bg: #30363d;
+    --selected-bg: #1e3a5f;
+    
+    /* Acentos */
+    --accent-primary: #3b82f6;
+    --accent-primary-hover: #60a5fa;
+    --accent-secondary: #8b5cf6;
+    --accent-success: #10b981;
+    --accent-warning: #f59e0b;
+    --accent-error: #ef4444;
+    --accent-info: #06b6d4;
+}
+
+/* Mejoras de contraste para dark mode */
+.dark {
+    color-scheme: dark;
+}
+
+.dark body {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+/* Editor de texto en dark mode */
+.dark #text-editor {
+    background-color: var(--bg-primary) !important;
+    color: var(--text-primary) !important;
+}
+
+.dark #text-editor h1,
+.dark #text-editor h2,
+.dark #text-editor h3,
+.dark #text-editor h4,
+.dark #text-editor h5,
+.dark #text-editor h6 {
+    color: var(--text-primary) !important;
+    font-weight: 600;
+}
+
+.dark #text-editor h1 {
+    font-size: 2em;
+    margin-bottom: 0.5em;
+}
+
+.dark #text-editor h2 {
+    font-size: 1.5em;
+    margin-bottom: 0.5em;
+}
+
+.dark #text-editor h3 {
+    font-size: 1.25em;
+    margin-bottom: 0.5em;
+}
+
+.dark #text-editor p,
+.dark #text-editor li,
+.dark #text-editor span,
+.dark #text-editor div {
+    color: var(--text-primary) !important;
+}
+
+.dark #text-editor ul,
+.dark #text-editor ol {
+    color: var(--text-primary) !important;
+    padding-left: 1.5em;
+}
+
+.dark #text-editor a {
+    color: #58a6ff !important;
+}
+
+.dark #text-editor code {
+    background-color: var(--bg-tertiary) !important;
+    color: #ff7b72 !important;
+    padding: 0.2em 0.4em;
+    border-radius: 3px;
+    font-family: 'Courier New', monospace;
+}
+
+.dark #text-editor pre {
+    background-color: var(--bg-tertiary) !important;
+    color: var(--text-primary) !important;
+    padding: 1em;
+    border-radius: 6px;
+    overflow-x: auto;
+}
+
+.dark #text-editor blockquote {
+    border-left: 4px solid var(--border-color);
+    padding-left: 1em;
+    color: var(--text-secondary) !important;
+    font-style: italic;
+}
+
+.dark #text-editor table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+.dark #text-editor table td,
+.dark #text-editor table th {
+    border: 1px solid var(--border-color);
+    padding: 0.5em;
+    color: var(--text-primary) !important;
+}
+
+.dark #text-editor table th {
+    background-color: var(--bg-tertiary);
+    font-weight: 600;
+}
+
+/* Sidebars en dark mode */
+.dark #left-sidebar,
+.dark #right-sidebar {
+    background-color: var(--bg-secondary);
+    border-color: var(--border-color);
+}
+
+.dark #left-sidebar h3,
+.dark #right-sidebar h3 {
+    color: var(--text-primary);
+}
+
+/* Toolbar en dark mode */
+.dark #editor-toolbar {
+    background-color: var(--bg-secondary) !important;
+    border-color: var(--border-color) !important;
+}
+
+.dark #editor-toolbar button {
+    color: var(--text-tertiary);
+}
+
+.dark #editor-toolbar button:hover {
+    background-color: var(--hover-bg);
+    color: var(--text-primary);
+}
+
+.dark #editor-toolbar button.active {
+    background-color: var(--accent-primary);
+    color: #ffffff;
+}
+
+.dark #editor-toolbar select {
+    background-color: var(--bg-elevated);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+.dark #editor-toolbar input[type="color"] {
+    background-color: var(--bg-elevated);
+    border-color: var(--border-color);
+}
+
+.dark #editor-toolbar .separator {
+    background-color: var(--border-color);
+}
+
+/* Header en dark mode */
+.dark header {
+    background-color: var(--bg-secondary);
+    border-color: var(--border-color);
+}
+
+/* Thumbnails de páginas en dark mode */
+.dark .page-thumbnail {
+    background-color: var(--bg-card);
+    border-color: var(--border-color);
+}
+
+.dark .page-thumbnail:hover {
+    background-color: var(--hover-bg);
+    border-color: var(--border-strong);
+}
+
+.dark .page-thumbnail.active {
+    background-color: var(--selected-bg);
+    border-color: var(--accent-primary);
 }
 
 /* Reset básico */
@@ -64,17 +257,17 @@ body {
 }
 
 .dark .editor-btn {
-    color: #d1d5db;
+    color: #8b949e;
 }
 
 .dark .editor-btn:hover {
-    background-color: #374151;
-    color: #f9fafb;
+    background-color: #21262d;
+    color: #c9d1d9;
 }
 
 .dark .editor-btn.active {
-    background-color: #312e81;
-    color: #a5b4fc;
+    background-color: #1f6feb;
+    color: #ffffff;
 }
 
 /* Tarjetas de materias y temas */
@@ -91,6 +284,411 @@ body {
 .subject-card:focus, .topic-card:focus {
     outline: 2px solid var(--primary-color);
     outline-offset: 2px;
+}
+
+/* Inputs y selects en dark mode */
+.dark input,
+.dark select,
+.dark textarea {
+    background-color: var(--bg-elevated);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+.dark input:focus,
+.dark select:focus,
+.dark textarea:focus {
+    border-color: var(--accent-primary);
+    background-color: var(--bg-elevated);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+    color: var(--text-muted);
+}
+
+/* Dropzone en dark mode */
+.dark #drop-zone {
+    border-color: var(--border-color);
+    background-color: transparent;
+}
+
+.dark #drop-zone:hover {
+    border-color: var(--accent-primary);
+    background-color: rgba(59, 130, 246, 0.05);
+}
+
+/* Resource list en dark mode */
+.dark #resource-list {
+    color: var(--text-primary);
+}
+
+.dark .resource-item {
+    background-color: var(--bg-card);
+    border-color: var(--border-color);
+}
+
+.dark .resource-item:hover {
+    background-color: var(--hover-bg);
+    border-color: var(--border-strong);
+}
+
+/* Botones en dark mode */
+.dark button {
+    color: var(--text-primary);
+}
+
+.dark button:hover {
+    background-color: var(--hover-bg);
+}
+
+/* Scroll vertical específico para dashboards */
+.dark #dashboard-view,
+.dark #subjects-view,
+.dark #topics-view,
+.dark #study-view {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    height: 100vh;
+}
+
+/* Scrollbars específicos para dashboards */
+.dark #dashboard-view::-webkit-scrollbar,
+.dark #subjects-view::-webkit-scrollbar,
+.dark #topics-view::-webkit-scrollbar,
+.dark #study-view::-webkit-scrollbar {
+    width: 6px;
+}
+
+.dark #dashboard-view::-webkit-scrollbar-track,
+.dark #subjects-view::-webkit-scrollbar-track,
+.dark #topics-view::-webkit-scrollbar-track,
+.dark #study-view::-webkit-scrollbar-track {
+    background: var(--bg-primary);
+}
+
+.dark #dashboard-view::-webkit-scrollbar-thumb,
+.dark #subjects-view::-webkit-scrollbar-thumb,
+.dark #topics-view::-webkit-scrollbar-thumb,
+.dark #study-view::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 3px;
+}
+
+.dark #dashboard-view::-webkit-scrollbar-thumb:hover,
+.dark #subjects-view::-webkit-scrollbar-thumb:hover,
+.dark #topics-view::-webkit-scrollbar-thumb:hover,
+.dark #study-view::-webkit-scrollbar-thumb:hover {
+    background: var(--text-secondary);
+}
+
+/* Títulos y breadcrumbs en dark mode */
+.dark #study-view-title,
+.dark #study-view-breadcrumb {
+    color: var(--text-primary);
+}
+
+/* Widget de eventos en dark mode */
+.dark #events-widget {
+    color: var(--text-primary);
+}
+
+/* Modales y paneles flotantes en dark mode */
+.dark .floating-tab-content {
+    background-color: var(--bg-card) !important;
+    border-color: var(--border-strong) !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5) !important;
+}
+
+.dark .tab-section h5 {
+    color: var(--text-tertiary) !important;
+    font-weight: 600;
+}
+
+.dark .tab-action-btn,
+.dark .tab-action-btn-full {
+    background-color: var(--bg-elevated) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
+}
+
+.dark .tab-action-btn:hover,
+.dark .tab-action-btn-full:hover {
+    background-color: var(--hover-bg) !important;
+    border-color: var(--border-strong) !important;
+}
+
+/* Pomodoro widget en dark mode */
+.dark #pomodoro-widget {
+    background-color: var(--bg-card) !important;
+    border-color: var(--border-strong) !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5) !important;
+}
+
+.dark #pomodoro-mode {
+    color: var(--text-tertiary) !important;
+}
+
+.dark #pomodoro-display {
+    color: var(--text-primary) !important;
+    font-weight: 700;
+}
+
+.dark #session-counter {
+    color: var(--text-muted) !important;
+}
+
+.dark #pomodoro-progress {
+    background-color: var(--bg-elevated) !important;
+}
+
+.dark #pomodoro-progress-bar {
+    background-color: var(--accent-primary) !important;
+}
+
+/* Botones de Pomodoro en dark mode */
+.dark #pomodoro-start,
+.dark #pomodoro-pause,
+.dark #pomodoro-reset {
+    background-color: var(--bg-elevated) !important;
+    border: 1px solid var(--border-color) !important;
+    color: var(--text-primary) !important;
+}
+
+.dark #pomodoro-start:hover,
+.dark #pomodoro-pause:hover,
+.dark #pomodoro-reset:hover {
+    background-color: var(--hover-bg) !important;
+    border-color: var(--border-strong) !important;
+}
+
+.dark #start-pomodoro-btn {
+    background: var(--accent-primary) !important;
+    border: none !important;
+    color: white !important;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.25) !important;
+}
+
+.dark #start-pomodoro-btn:hover {
+    background: var(--accent-primary-hover) !important;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.35) !important;
+}
+
+/* Modal de configuración de Pomodoro en dark mode */
+.dark .bg-slate-900\/50,
+.dark .bg-slate-800,
+.dark .bg-slate-800\/50 {
+    background-color: var(--bg-card) !important;
+    border-color: var(--border-color) !important;
+}
+
+.dark .text-slate-300 {
+    color: var(--text-secondary) !important;
+}
+
+.dark .text-slate-400 {
+    color: var(--text-tertiary) !important;
+}
+
+.dark .text-slate-200 {
+    color: var(--text-primary) !important;
+}
+
+.dark .bg-slate-700 {
+    background-color: var(--bg-elevated) !important;
+}
+
+.dark .border-slate-700,
+.dark .border-slate-600 {
+    border-color: var(--border-color) !important;
+}
+
+.dark .border-slate-700\/50 {
+    border-color: var(--border-subtle) !important;
+}
+
+/* Inputs en modales dark mode */
+.dark input[type="number"],
+.dark input[type="text"],
+.dark input[type="file"] {
+    background-color: var(--bg-tertiary) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
+}
+
+.dark input[type="number"]:focus,
+.dark input[type="text"]:focus {
+    border-color: #1f6feb !important;
+    background-color: var(--bg-secondary) !important;
+}
+
+/* Botones de acción en dark mode */
+.dark button[class*="bg-gradient"] {
+    background: linear-gradient(to right, var(--bg-tertiary), var(--active-bg)) !important;
+    border: 1px solid var(--border-color) !important;
+    color: var(--text-primary) !important;
+}
+
+.dark button[class*="bg-gradient"]:hover {
+    background: linear-gradient(to right, var(--hover-bg), var(--bg-tertiary)) !important;
+}
+
+/* Botón de perfil */
+.dark #profile-menu-btn {
+    background: var(--accent-primary) !important;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3) !important;
+}
+
+.dark #profile-menu-btn:hover {
+    background: var(--accent-primary-hover) !important;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4) !important;
+}
+
+.dark .bg-cyan-600,
+.dark .bg-blue-600,
+.dark button[class*="from-indigo"],
+.dark button[class*="from-purple"],
+.dark button[class*="from-blue"] {
+    background: var(--accent-primary) !important;
+    border: none !important;
+    color: white !important;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.25) !important;
+}
+
+.dark .bg-cyan-600:hover,
+.dark .bg-blue-600:hover,
+.dark button[class*="from-indigo"]:hover,
+.dark button[class*="from-purple"]:hover,
+.dark button[class*="from-blue"]:hover {
+    background: var(--accent-primary-hover) !important;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.35) !important;
+}
+
+.dark .bg-amber-600 {
+    background-color: var(--accent-warning) !important;
+    border: none !important;
+    color: white !important;
+}
+
+.dark .bg-red-600 {
+    background-color: var(--accent-error) !important;
+    border: none !important;
+    color: white !important;
+}
+
+.dark .bg-green-600,
+.dark .bg-emerald-500 {
+    background-color: var(--accent-success) !important;
+    border: none !important;
+    color: white !important;
+}
+
+/* Cards de materias y temas - Colores elegantes */
+.dark .subject-card,
+.dark .bg-slate-800\/80,
+.dark .bg-slate-800\/60 {
+    background-color: var(--bg-card) !important;
+    border-color: var(--border-color) !important;
+}
+
+.dark .subject-card:hover {
+    background-color: var(--hover-bg) !important;
+    border-color: var(--border-strong) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Headers limpios sin fondos */
+.dark header {
+    background-color: transparent !important;
+    border: none !important;
+}
+
+/* Títulos sin gradientes - solo texto normal */
+.dark h1[class*="gradient"],
+.dark .bg-gradient-to-r {
+    background: none !important;
+    color: var(--text-primary) !important;
+    -webkit-background-clip: unset !important;
+    background-clip: unset !important;
+}
+
+/* Iconos con colores sutiles */
+.dark .text-indigo-400,
+.dark .text-purple-400,
+.dark .text-blue-400 {
+    color: var(--accent-primary) !important;
+}
+
+.dark .text-emerald-400,
+.dark .text-green-400 {
+    color: var(--accent-success) !important;
+}
+
+.dark .text-slate-400 {
+    color: var(--text-tertiary) !important;
+}
+
+.dark .text-slate-300 {
+    color: var(--text-secondary) !important;
+}
+
+.dark .text-slate-500 {
+    color: var(--text-muted) !important;
+}
+
+/* Fondos de iconos */
+.dark .bg-indigo-500\/20,
+.dark .bg-purple-500\/20,
+.dark .bg-blue-500\/20,
+.dark .bg-slate-500\/20 {
+    background-color: rgba(59, 130, 246, 0.1) !important;
+}
+
+.dark .bg-emerald-500\/20,
+.dark .bg-green-500\/20 {
+    background-color: rgba(16, 185, 129, 0.1) !important;
+}
+
+.dark .bg-rose-500\/20,
+.dark .bg-red-500\/20 {
+    background-color: rgba(239, 68, 68, 0.1) !important;
+}
+
+/* Barras de progreso */
+.dark .bg-indigo-500,
+.dark .progress-bar-fill {
+    background-color: var(--accent-primary) !important;
+}
+
+.dark .bg-slate-700 {
+    background-color: var(--bg-elevated) !important;
+}
+
+.dark .bg-slate-600 {
+    background-color: var(--bg-tertiary) !important;
+}
+
+/* Menús desplegables */
+.dark .subject-dropdown,
+.dark #profile-menu {
+    background-color: var(--bg-elevated) !important;
+    border-color: var(--border-strong) !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5) !important;
+}
+
+.dark .subject-dropdown button:hover,
+.dark #profile-menu button:hover {
+    background-color: var(--hover-bg) !important;
+}
+
+/* Breadcrumbs y navegación */
+.dark nav button:hover {
+    color: var(--accent-primary) !important;
+}
+
+.dark nav span {
+    color: var(--text-primary) !important;
 }
 
 /* Miniaturas de páginas */
@@ -181,20 +779,21 @@ body {
     border-radius: 0.25rem;
 }
 
-/* Dark mode para prose */
+/* Dark mode para prose - Mejorado */
 .dark .prose h1,
 .dark .prose h2,
 .dark .prose h3 {
-    color: #f9fafb;
+    color: #e6edf3;
 }
 
 .dark .prose p,
 .dark .prose li {
-    color: #d1d5db;
+    color: #c9d1d9;
 }
 
 .dark .prose strong {
-    color: #f9fafb;
+    color: #e6edf3;
+    font-weight: 700;
 }
 
 .dark .prose mark {
@@ -242,21 +841,23 @@ body {
     transition: transform 0.2s ease-in-out;
 }
 
-/* Dark mode para collapsibles */
+/* Dark mode para collapsibles - Mejorado */
 .dark .collapsible-box {
-    border-color: #374151;
+    border-color: #30363d;
+    background-color: #0d1117;
 }
 
 .dark .collapsible-header {
-    background-color: #374151;
+    background-color: #161b22;
 }
 
 .dark .collapsible-header:hover {
-    background-color: #4b5563;
+    background-color: #21262d;
 }
 
 .dark .collapsible-content {
-    border-color: #374151;
+    border-color: #30363d;
+    background-color: #0d1117;
 }
 
 /* Sistema de notificaciones */
@@ -453,26 +1054,21 @@ body {
     background: #64748b;
 }
 
-/* Asegurar que aside lleguen al borde inferior */
-#study-view {
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
+/* Asegurar estructura correcta de altura */
+#study-content-grid > main {
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 0 !important;
+    height: 100% !important;
+    overflow-y: auto !important;
 }
 
-#study-view main {
-    flex: 1;
-    display: flex;
-    min-height: 0;
-}
-
-#study-view aside {
-    height: 100%;
-}
-
-/* Ajustar contenedor principal para ocupar toda la altura */
-#study-view .flex.h-full {
-    height: calc(100vh - 73px); /* Restar altura del header */
+#study-content-grid > aside {
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 0 !important;
+    height: 100% !important;
+    overflow-y: auto !important;
 }
 
 /* Estados de carga */
@@ -653,4 +1249,66 @@ textarea:focus-visible,
     border: 4px solid transparent;
     border-top-color: #1f2937;
     transform: translateX(-50%);
+}
+
+/* Dark mode para notificaciones */
+.dark .notification {
+    background-color: #161b22;
+    border-color: #30363d;
+    color: #c9d1d9;
+}
+
+/* Dark mode para tooltips */
+.dark .tooltip {
+    background-color: #21262d;
+    color: #e6edf3;
+}
+
+.dark .tooltip::after {
+    border-top-color: #21262d;
+}
+
+/* Mejoras generales dark mode */
+.dark body {
+    background-color: #0d1117;
+    color: #c9d1d9;
+}
+
+.dark input,
+.dark textarea,
+.dark select {
+    background-color: #0d1117;
+    border-color: #30363d;
+    color: #c9d1d9;
+}
+
+.dark input:focus,
+.dark textarea:focus,
+.dark select:focus {
+    border-color: #1f6feb;
+    background-color: #161b22;
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+    color: #6e7681;
+}
+
+/* Scrollbar general en dark mode */
+.dark ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.dark ::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+    background: var(--text-secondary);
 }
